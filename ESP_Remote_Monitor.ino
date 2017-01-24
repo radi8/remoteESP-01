@@ -18,7 +18,7 @@ IPAddress subnet(255, 255, 255, 0);
 unsigned int localUdpPort = 8475;  // local port to listen on
 
 char incomingPacket[255];  // buffer for incoming packets
-char  replyPacekt[] = "Hi there! Got the message :-)";  // a reply string to send back
+char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
 
 
 void setup()
@@ -51,7 +51,9 @@ void setup()
 
 void loop()
 {
+  uint8_t cmd;
   int packetSize = Udp.parsePacket();
+  
   if (packetSize)
   {
     // receive incoming UDP packets
@@ -65,7 +67,18 @@ void loop()
 
     // send back a reply, to the IP address and port we got the packet from
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-    Udp.write(replyPacekt);
+    Udp.write(replyPacket);
     Udp.endPacket();
+    cmd = getCmd("01 incomingPacket");
   }
 }
+
+uint8_t getCmd(char* incomingPacket)
+{
+  long cmdNumber;
+  char * pEnd;
+
+  cmdNumber = strtol(incomingPacket, &pEnd, 10);
+  return cmdNumber;
+}
+
