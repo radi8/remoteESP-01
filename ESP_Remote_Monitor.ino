@@ -69,7 +69,7 @@ void loop()
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
     Udp.write(replyPacket);
     Udp.endPacket();
-    cmd = getCmd("01 incomingPacket");
+    cmd = getCmd(incomingPacket);
   }
 }
 
