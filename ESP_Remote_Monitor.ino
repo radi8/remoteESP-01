@@ -90,10 +90,13 @@ void processCmd(uint8_t cmd)
 {
   switch (cmd) {
     case 1:
-      digitalWrite(2,LOW);
+      digitalWrite(2,LOW); // Turn Power on
       break;
     case 2:
-      digitalWrite(2,HIGH);
+      digitalWrite(2,HIGH); // Turn Power off
+      break;
+    case 3:
+      // Turn Power off
       break;
     default: 
       // if nothing else matches, do the default
