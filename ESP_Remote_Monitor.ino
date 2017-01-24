@@ -23,6 +23,8 @@ char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to sen
 
 void setup()
 {
+  pinMode(2, OUTPUT);      // sets the IO2 digital pin as output
+  digitalWrite(2, HIGH);
   Serial.begin(115200);
   Serial.println();
 
@@ -70,6 +72,8 @@ void loop()
     Udp.write(replyPacket);
     Udp.endPacket();
     cmd = getCmd(incomingPacket);
+    Serial.printf("cmd value = %d\n", cmd);
+    if (cmd > 0) processCmd(cmd);
   }
 }
 
@@ -80,5 +84,21 @@ uint8_t getCmd(char* incomingPacket)
 
   cmdNumber = strtol(incomingPacket, &pEnd, 10);
   return cmdNumber;
+}
+
+void processCmd(uint8_t cmd)
+{
+  switch (cmd) {
+    case 1:
+      digitalWrite(2,LOW);
+      break;
+    case 2:
+      digitalWrite(2,HIGH);
+      break;
+    default: 
+      // if nothing else matches, do the default
+      // default is optional
+    break;
+  }
 }
 
