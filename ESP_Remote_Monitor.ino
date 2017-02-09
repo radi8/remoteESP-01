@@ -8,6 +8,10 @@
 
 const char* ssid = "Guest";
 const char* password = "BeMyGuest";
+const int sda = 0;
+const int scl = 2;
+const int rxPin = 3; //GPIO3
+const int txPin = 1; //GPIO1
 
 WiFiUDP Udp;
 // NETWORK: Static IP details...
@@ -26,11 +30,12 @@ char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to sen
 
 void setup()
 {
-//  pinMode(2, OUTPUT);      // sets the IO2 digital pin as output
-//  digitalWrite(2, HIGH);
-  Serial.begin(115200);
+  pinMode(rxPin, OUTPUT);      // sets the IO2 digital pin as output
+  digitalWrite(rxPin, HIGH);
+
+  Serial.begin(115200,SERIAL_8N1,SERIAL_TX_ONLY);
   Serial.println();
-  Wire.begin(0,2);//Change to Wire.begin() for non ESP.
+  Wire.begin(sda, scl);//Change to Wire.begin() for non ESP.
 
   Serial.printf("Connecting to %s/%d ", ssid, localUdpPort);
 // Static IP Setup Info Here...
@@ -70,11 +75,12 @@ void loop()
       incomingPacket[len] = 0;  //Terminate string
     }
     Serial.printf("UDP packet contents: %s\n", incomingPacket);
-
+/*
     // send back a reply, to the IP address and port we got the packet from
     Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
     Udp.write(replyPacket);
     Udp.endPacket();
+*/    
     cmd = getCmd(incomingPacket);
     Serial.printf("cmd value = %d\n", cmd);
     if (cmd > 0) processCmd(cmd);
@@ -92,20 +98,41 @@ uint8_t getCmd(char* incomingPacket)
 
 void processCmd(uint8_t cmd)
 {
+  Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
   switch (cmd) {
     case 1:
-      digitalWrite(2,LOW); // Turn Power on
+      // Send power on signal via I2C to Arduino
+      digitalWrite(rxPin,LOW); // Turn Power on    
+      Udp.write("03 1");    
       break;
     case 2:
-      digitalWrite(2,HIGH); // Turn Power off
+      digitalWrite(rxPin,HIGH); // Turn Power off
+      Udp.write("03 0");
       break;
     case 3:
-      // Turn Power off
+      // Add code here
+      break;
+    case 4:
+      // Add code here
+      break;      
+    case 5: //debug note: This code should switch a relay via Arduino I2C
+      Udp.write("01 12600");
+      break;
+    case 6:
+      Udp.write("01 12600");
+      break;      
+    case 7:
+      Udp.write("01 0");
+      break;
+    case 8:
+      Udp.write("01 0");
       break;
     default: 
       // if nothing else matches, do the default
       // default is optional
     break;
   }
+  Udp.endPacket();
+// send back a reply, to the IP address and port we got the packet from  
 }
 
