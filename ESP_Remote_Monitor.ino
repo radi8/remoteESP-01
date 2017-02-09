@@ -1,7 +1,10 @@
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
+#include <Wire.h>
 
 //#define FEATURE_Internet_Access
+
+#define I2CAddressESPWifi 8
 
 const char* ssid = "Guest";
 const char* password = "BeMyGuest";
@@ -23,10 +26,11 @@ char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to sen
 
 void setup()
 {
-  pinMode(2, OUTPUT);      // sets the IO2 digital pin as output
-  digitalWrite(2, HIGH);
+//  pinMode(2, OUTPUT);      // sets the IO2 digital pin as output
+//  digitalWrite(2, HIGH);
   Serial.begin(115200);
   Serial.println();
+  Wire.begin(0,2);//Change to Wire.begin() for non ESP.
 
   Serial.printf("Connecting to %s/%d ", ssid, localUdpPort);
 // Static IP Setup Info Here...
@@ -56,14 +60,14 @@ void loop()
   uint8_t cmd;
   int packetSize = Udp.parsePacket();
   
-  if (packetSize)
+  if (packetSize) // Process incoming packets if we received some
   {
     // receive incoming UDP packets
     Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
     int len = Udp.read(incomingPacket, 255);
     if (len > 0)
     {
-      incomingPacket[len] = 0;
+      incomingPacket[len] = 0;  //Terminate string
     }
     Serial.printf("UDP packet contents: %s\n", incomingPacket);
 
