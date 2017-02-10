@@ -4,7 +4,7 @@
 
 //#define FEATURE_Internet_Access
 
-#define I2CAddressESPWifi 8
+#define I2CAddressESPWifi 9
 
 const char* ssid = "Guest";
 const char* password = "BeMyGuest";
@@ -12,6 +12,7 @@ const int sda = 0;
 const int scl = 2;
 const int rxPin = 3; //GPIO3
 const int txPin = 1; //GPIO1
+const int LED = 10;
 
 WiFiUDP Udp;
 // NETWORK: Static IP details...
@@ -35,7 +36,8 @@ void setup()
 
   Serial.begin(115200,SERIAL_8N1,SERIAL_TX_ONLY);
   Serial.println();
-  Wire.begin(sda, scl);//Change to Wire.begin() for non ESP.
+  Wire.begin(sda, scl);//Set up as master
+  Wire.onReceive(receiveEvent);
 
   Serial.printf("Connecting to %s/%d ", ssid, localUdpPort);
 // Static IP Setup Info Here...
@@ -109,11 +111,13 @@ void processCmd(uint8_t cmd)
       digitalWrite(rxPin,HIGH); // Turn Power off
       Udp.write("03 0");
       break;
-    case 3:
-      // Add code here
+    case 3: // Tune button clicked
+      Serial.println("ESP01 has received 03 command");
+      Udp.write("03 received at ESP01");
+      sendArduino(1);
       break;
     case 4:
-      // Add code here
+      sendArduino(0); // Hello button clicked
       break;      
     case 5: //debug note: This code should switch a relay via Arduino I2C
       Udp.write("01 12600");
@@ -136,3 +140,18 @@ void processCmd(uint8_t cmd)
 // send back a reply, to the IP address and port we got the packet from  
 }
 
+void sendArduino(int cmd)
+{
+     Wire.beginTransmission(I2CAddressESPWifi);
+     Wire.write(cmd);
+     Wire.endTransmission();
+}
+
+void receiveEvent(int howMany){
+ while (Wire.available() > 0){
+   boolean b = Wire.read();
+   Serial.print(b, DEC);
+ //  digitalWrite(LED, !b);
+ }
+ Serial.println(" received");
+}
