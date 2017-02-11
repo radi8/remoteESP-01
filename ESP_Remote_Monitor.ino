@@ -80,8 +80,15 @@ void setup()
   Udp.begin(localUdpPort);
   Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
   delay(100);
-  sendCommand (CMD_ID, 18);
-}
+  sendCommand (CMD_ID, 18); // Command is 55 and response will be 18 characters
+  if (Wire.available()) {
+    for (byte i = 0; i <= 18 ; i++) {
+      I2C_recdBuf[i] = Wire.read ();
+    }  // end of for loop
+    Serial.println (I2C_recdBuf);
+  }
+  else Serial.println ("No response to ID request");
+} // end of setup
 
 
 void loop()
