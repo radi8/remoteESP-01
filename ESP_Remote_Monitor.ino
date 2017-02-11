@@ -14,6 +14,23 @@ const int rxPin = 3; //GPIO3
 const int txPin = 1; //GPIO1
 const int LED = 10;
 
+enum {
+    CMD_TUNE = 1,
+    CMD_READ_A0  = 2,
+    CMD_READ_A1  = 3,
+    CMD_READ_A2  = 4,
+    CMD_READ_D2 = 5,    
+    CMD_READ_D3 = 6,
+    CMD_SET_D8_HI = 7,
+    CMD_SET_D8_LO = 8,
+    CMD_SET_D9_HI = 9,
+    CMD_SET_D9_LO = 10,
+    CMD_SET_LED_HI = 11,
+    CMD_SET_LED_LO = 12,
+    CMD_STATUS = 13,
+    CMD_ID = 55          
+    };
+
 WiFiUDP Udp;
 // NETWORK: Static IP details...
 IPAddress ip(192, 168, 1, 70);
@@ -27,6 +44,9 @@ unsigned int localUdpPort = 8475;  // local port to listen on
 
 char incomingPacket[255];  // buffer for incoming packets
 char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
+
+char I2C_sendBuf[32];
+char I2C_recdBuf[32];
 
 
 void setup()
@@ -59,6 +79,8 @@ void setup()
 
   Udp.begin(localUdpPort);
   Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
+  delay(100);
+  sendCommand (CMD_ID, 18);
 }
 
 
@@ -114,10 +136,12 @@ void processCmd(uint8_t cmd)
     case 3: // Tune button clicked
       Serial.println("ESP01 has received 03 command");
       Udp.write("03 received at ESP01");
-      sendArduino(1);
+      strcpy(I2C_sendBuf, "1");
+      sendArduino();
       break;
     case 4:
-      sendArduino(0); // Hello button clicked
+    strcpy(I2C_sendBuf, "0");
+      sendArduino(); // Hello button clicked
       break;      
     case 5: //debug note: This code should switch a relay via Arduino I2C
       Udp.write("01 12600");
@@ -140,18 +164,45 @@ void processCmd(uint8_t cmd)
 // send back a reply, to the IP address and port we got the packet from  
 }
 
-void sendArduino(int cmd)
+/************************** I2C subroutines **************************/
+
+void sendArduino()
 {
-     Wire.beginTransmission(I2CAddressESPWifi);
-     Wire.write(cmd);
-     Wire.endTransmission();
+  uint8_t len;
+  
+  len = strlen(I2C_sendBuf);
+  I2C_sendBuf[len] = '\0';
+  
+   Wire.beginTransmission(I2CAddressESPWifi);
+   for (uint8_t x = 0; x <= len; x++) {
+     Wire.write(I2C_sendBuf[x]);
+   }  
+   Wire.endTransmission();
 }
 
 void receiveEvent(int howMany){
- while (Wire.available() > 0){
-   boolean b = Wire.read();
-   Serial.print(b, DEC);
- //  digitalWrite(LED, !b);
- }
- Serial.println(" received");
+  for (byte i = 0; i < howMany; i++)
+  {
+    I2C_recdBuf[i] = Wire.read ();
+  }  // end of for loop
+
+ Serial.println(I2C_recdBuf);
 }
+
+void sendCommand (const byte cmd, const int responseSize)
+{
+  uint8_t len;
+
+  sprintf(I2C_sendBuf, "%d", cmd);
+  len = strlen(I2C_sendBuf);
+  I2C_sendBuf[len] = '\0';
+  Wire.beginTransmission (I2CAddressESPWifi);
+  for (byte i = 0; i <= len; i++)
+  {
+    Wire.write(I2C_sendBuf[i]); // Chug out one char at a time.
+  }  // end of for loop
+  Wire.endTransmission ();
+  Serial.print("Sent from ESP01:sendCommand() ");
+  Serial.println(I2C_sendBuf);
+  Wire.requestFrom (I2CAddressESPWifi, responseSize);  
+}  // end of sendCommand
