@@ -151,6 +151,7 @@ uint8_t getCmd(char* incomingPacket)
 
 void processCmd(uint8_t cmd)
 {
+  int  x;
   Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
   switch (cmd) {
     case 1:
@@ -172,11 +173,39 @@ void processCmd(uint8_t cmd)
     strcpy(I2C_sendBuf, "0");
       sendArduino(); // Hello button clicked
       break;      
-    case 5: //debug note: This code should switch a relay via Arduino I2C
+    case 5: //debug note: This code should switch a relay via Arduino I2C 
       Udp.write("01 12600");
+      sendCommand (CMD_READ_A1, 4);
+      memset(I2C_recdBuf, '\0', 32);
+      delay(100);//Wait for Slave to calculate response.
+      x = Wire.available();
+      Serial.print("@case 5: Wire.available() = ");
+      Serial.println (x);
+      if (x) {   
+        for (byte i = 0; i < x ; i++) {
+          I2C_recdBuf[i] = Wire.read ();
+        }  // end of for loop
+        Serial.println();
+        Serial.print("@case 5: I2C_recdBuf[] contents = ");
+        Serial.println (I2C_recdBuf);
+      }
       break;
     case 6:
       Udp.write("01 12600");
+      sendCommand (CMD_READ_A2, 4);
+      memset(I2C_recdBuf, '\0', 32);
+      delay(100);//Wait for Slave to calculate response.
+      x = Wire.available();
+      Serial.print("@case 6: Wire.available() = ");
+      Serial.println (x);
+      if (x) {   
+        for (byte i = 0; i < x ; i++) {
+          I2C_recdBuf[i] = Wire.read ();
+        }  // end of for loop
+        Serial.println();
+        Serial.print("@case 6: I2C_recdBuf[] contents = ");
+        Serial.println (I2C_recdBuf);
+      }
       break;      
     case 7:
       Udp.write("01 0");
