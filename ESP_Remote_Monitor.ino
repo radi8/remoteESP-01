@@ -15,21 +15,21 @@ const int txPin = 1; //GPIO1
 const int LED = 10;
 
 enum {
-    CMD_TUNE = 1,
-    CMD_READ_A0  = 2,
-    CMD_READ_A1  = 3,
-    CMD_READ_A2  = 4,
-    CMD_READ_D2 = 5,    
-    CMD_READ_D3 = 6,
-    CMD_SET_D8_HI = 7,
-    CMD_SET_D8_LO = 8,
-    CMD_SET_D9_HI = 9,
-    CMD_SET_D9_LO = 10,
-    CMD_SET_LED_HI = 11,
-    CMD_SET_LED_LO = 12,
-    CMD_STATUS = 13,
-    CMD_ID = 55          
-    };
+  CMD_TUNE = 1,
+  CMD_READ_A0  = 2,
+  CMD_READ_A1  = 3,
+  CMD_READ_A2  = 4,
+  CMD_READ_D2 = 5,
+  CMD_READ_D3 = 6,
+  CMD_SET_D8_HI = 7,
+  CMD_SET_D8_LO = 8,
+  CMD_SET_D9_HI = 9,
+  CMD_SET_D9_LO = 10,
+  CMD_SET_LED_HI = 11,
+  CMD_SET_LED_LO = 12,
+  CMD_STATUS = 13,
+  CMD_ID = 55
+};
 
 WiFiUDP Udp;
 // NETWORK: Static IP details...
@@ -37,7 +37,7 @@ IPAddress ip(192, 168, 1, 70);
 IPAddress gateway(192, 168, 1, 1);
 IPAddress subnet(255, 255, 255, 0);
 #ifdef FEATURE_Internet_Access
-  IPAddress dns(202.180.64.10);
+IPAddress dns(202.180.64.10);
 #endif
 
 unsigned int localUdpPort = 8475;  // local port to listen on
@@ -54,14 +54,14 @@ void setup()
   pinMode(rxPin, OUTPUT);      // sets the IO2 digital pin as output
   digitalWrite(rxPin, HIGH);
 
-  Serial.begin(115200,SERIAL_8N1,SERIAL_TX_ONLY);
+  Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   Serial.println();
   Wire.begin(sda, scl);//Set up as master
   Wire.setClockStretchLimit(100000);    // in µs
   Wire.onReceive(receiveEvent);
 
   Serial.printf("Connecting to %s/%d ", ssid, localUdpPort);
-// Static IP Setup Info Here...
+  // Static IP Setup Info Here...
 #ifdef FEATURE_Internet_Access
   // If you need Internet Access You should Add DNS also...
   WiFi.config(ip, dns, gateway, subnet);
@@ -69,7 +69,7 @@ void setup()
   WiFi.config(ip, gateway, subnet);
 #endif
 
-// Start Server
+  // Start Server
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -87,24 +87,24 @@ void setup()
   int x = Wire.available();
   Serial.print("@Slave setup routine: Wire.available() = ");
   Serial.println (x);
-//  I2C_recdBuf[0] = 'H';
-//  I2C_recdBuf[1] = 'i';
-//  Serial.println (I2C_recdBuf);
+  //  I2C_recdBuf[0] = 'H';
+  //  I2C_recdBuf[1] = 'i';
+  //  Serial.println (I2C_recdBuf);
   if (x) {
-    
+
     for (byte i = 0; i < x ; i++) {
       I2C_recdBuf[i] = Wire.read ();
     }  // end of for loop
-/*
-    x = 0;
-    while(Wire.available()) {
-      delay(10);
-      I2C_recdBuf[x] = Wire.read();
-      Serial.print(I2C_recdBuf[x]);
-      x++;
-      if(x == 32) break;  
-    }
-*/    
+    /*
+        x = 0;
+        while(Wire.available()) {
+          delay(10);
+          I2C_recdBuf[x] = Wire.read();
+          Serial.print(I2C_recdBuf[x]);
+          x++;
+          if(x == 32) break;
+        }
+    */
     Serial.println();
     Serial.print("@Slave setup routine: I2C_recdBuf[] contents = ");
     Serial.println (I2C_recdBuf);
@@ -117,7 +117,7 @@ void loop()
 {
   uint8_t cmd;
   int packetSize = Udp.parsePacket();
-  
+
   if (packetSize) // Process incoming packets if we received some
   {
     // receive incoming UDP packets
@@ -128,12 +128,12 @@ void loop()
       incomingPacket[len] = 0;  //Terminate string
     }
     Serial.printf("UDP packet contents: %s\n", incomingPacket);
-/*
-    // send back a reply, to the IP address and port we got the packet from
-    Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-    Udp.write(replyPacket);
-    Udp.endPacket();
-*/    
+    /*
+        // send back a reply, to the IP address and port we got the packet from
+        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+        Udp.write(replyPacket);
+        Udp.endPacket();
+    */
     cmd = getCmd(incomingPacket);
     Serial.printf("cmd value = %d\n", cmd);
     if (cmd > 0) processCmd(cmd);
@@ -156,11 +156,11 @@ void processCmd(uint8_t cmd)
   switch (cmd) {
     case 1:
       // Send power on signal via I2C to Arduino
-      digitalWrite(rxPin,LOW); // Turn Power on    
-      Udp.write("03 1");    
+      digitalWrite(rxPin, LOW); // Turn Power on
+      Udp.write("03 1");
       break;
     case 2:
-      digitalWrite(rxPin,HIGH); // Turn Power off
+      digitalWrite(rxPin, HIGH); // Turn Power off
       Udp.write("03 0");
       break;
     case 3: // Tune button clicked
@@ -170,10 +170,10 @@ void processCmd(uint8_t cmd)
       sendArduino();
       break;
     case 4:
-    strcpy(I2C_sendBuf, "0");
+      strcpy(I2C_sendBuf, "0");
       sendArduino(); // Hello button clicked
-      break;      
-    case 5: //debug note: This code should switch a relay via Arduino I2C 
+      break;
+    case 5: //debug note: This code should switch a relay via Arduino I2C
       Udp.write("01 12600");
       sendCommand (CMD_READ_A1, 4);
       memset(I2C_recdBuf, '\0', 32);
@@ -181,11 +181,10 @@ void processCmd(uint8_t cmd)
       x = Wire.available();
       Serial.print("@case 5: Wire.available() = ");
       Serial.println (x);
-      if (x) {   
+      if (x) {
         for (byte i = 0; i < x ; i++) {
           I2C_recdBuf[i] = Wire.read ();
         }  // end of for loop
-        Serial.println();
         Serial.print("@case 5: I2C_recdBuf[] contents = ");
         Serial.println (I2C_recdBuf);
       }
@@ -193,59 +192,76 @@ void processCmd(uint8_t cmd)
     case 6:
       Udp.write("01 12600");
       sendCommand (CMD_READ_A2, 4);
-      memset(I2C_recdBuf, '\0', 32);
+      requestFromResponse();
+/*      memset(I2C_recdBuf, '\0', 32);
       delay(100);//Wait for Slave to calculate response.
       x = Wire.available();
       Serial.print("@case 6: Wire.available() = ");
       Serial.println (x);
-      if (x) {   
+      if (x) {
         for (byte i = 0; i < x ; i++) {
           I2C_recdBuf[i] = Wire.read ();
         }  // end of for loop
-        Serial.println();
         Serial.print("@case 6: I2C_recdBuf[] contents = ");
         Serial.println (I2C_recdBuf);
-      }
-      break;      
+      } */
+      break;
     case 7:
       Udp.write("01 0");
       break;
     case 8:
       Udp.write("01 0");
       break;
-    default: 
+    default:
       // if nothing else matches, do the default
       // default is optional
-    break;
+      break;
   }
   Udp.endPacket();
-// send back a reply, to the IP address and port we got the packet from  
+  // send back a reply, to the IP address and port we got the packet from
 }
 
 /************************** I2C subroutines **************************/
 
+void requestFromResponse()
+{
+  int x;
+  
+  memset(I2C_recdBuf, '\0', 32);
+  delay(100);//Wait for Slave to calculate response.
+  x = Wire.available();
+  Serial.print("@requestFromResponse(): Wire.available() = ");
+  Serial.println (x);
+  if (x) {
+    for (byte i = 0; i < x ; i++) {
+      I2C_recdBuf[i] = Wire.read ();
+    }  // end of for loop
+    Serial.print("@requestFromResponse(): I2C_recdBuf[] contents = ");
+    Serial.println (I2C_recdBuf);
+  }
+}
 void sendArduino()
 {
   uint8_t len;
-  
+
   len = strlen(I2C_sendBuf);
   I2C_sendBuf[len] = '\0';
-  
-   Wire.beginTransmission(I2CAddressESPWifi);
-   for (uint8_t x = 0; x <= len; x++) {
-     Wire.write(I2C_sendBuf[x]);
-   }  
-   Wire.endTransmission();
+
+  Wire.beginTransmission(I2CAddressESPWifi);
+  for (uint8_t x = 0; x <= len; x++) {
+    Wire.write(I2C_sendBuf[x]);
+  }
+  Wire.endTransmission();
 }
 
-void receiveEvent(int howMany){
+void receiveEvent(int howMany) {
   memset(I2C_recdBuf, '\0', 32);
   for (byte i = 0; i < howMany; i++)
   {
     I2C_recdBuf[i] = Wire.read ();
   }  // end of for loop
 
- Serial.println(I2C_recdBuf);
+  Serial.println(I2C_recdBuf);
 }
 
 void sendCommand (const byte cmd, const int responseSize)
@@ -258,10 +274,10 @@ void sendCommand (const byte cmd, const int responseSize)
   Wire.beginTransmission (I2CAddressESPWifi);
   for (byte i = 0; i <= len; i++)
   {
-    Wire.write(I2C_sendBuf[i]); // Chug out one char at a time.
+    Wire.write(I2C_sendBuf[i]); // Chug out 1 character at a time
   }  // end of for loop
   Wire.endTransmission ();
   Serial.print("Sent from ESP01:sendCommand() ");
   Serial.println(I2C_sendBuf);
-  Wire.requestFrom (I2CAddressESPWifi, responseSize);  
+  Wire.requestFrom (I2CAddressESPWifi, responseSize);
 }  // end of sendCommand
