@@ -57,6 +57,7 @@ void setup()
   Serial.begin(115200,SERIAL_8N1,SERIAL_TX_ONLY);
   Serial.println();
   Wire.begin(sda, scl);//Set up as master
+  Wire.setClockStretchLimit(100000);    // in µs
   Wire.onReceive(receiveEvent);
 
   Serial.printf("Connecting to %s/%d ", ssid, localUdpPort);
@@ -80,11 +81,32 @@ void setup()
   Udp.begin(localUdpPort);
   Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
   delay(100);
-  sendCommand (CMD_ID, 18); // Command is 55 and response will be 18 characters
-  if (Wire.available()) {
-    for (byte i = 0; i <= 18 ; i++) {
+  memset(I2C_recdBuf, '\0', 32);
+  sendCommand (CMD_ID, 17); // Command is 55 and response will be 17 characters
+  delay(100);//Wait for Slave to calculate response.
+  int x = Wire.available();
+  Serial.print("@Slave setup routine: Wire.available() = ");
+  Serial.println (x);
+//  I2C_recdBuf[0] = 'H';
+//  I2C_recdBuf[1] = 'i';
+//  Serial.println (I2C_recdBuf);
+  if (x) {
+    
+    for (byte i = 0; i < x ; i++) {
       I2C_recdBuf[i] = Wire.read ();
     }  // end of for loop
+/*
+    x = 0;
+    while(Wire.available()) {
+      delay(10);
+      I2C_recdBuf[x] = Wire.read();
+      Serial.print(I2C_recdBuf[x]);
+      x++;
+      if(x == 32) break;  
+    }
+*/    
+    Serial.println();
+    Serial.print("@Slave setup routine: I2C_recdBuf[] contents = ");
     Serial.println (I2C_recdBuf);
   }
   else Serial.println ("No response to ID request");
@@ -188,6 +210,7 @@ void sendArduino()
 }
 
 void receiveEvent(int howMany){
+  memset(I2C_recdBuf, '\0', 32);
   for (byte i = 0; i < howMany; i++)
   {
     I2C_recdBuf[i] = Wire.read ();
