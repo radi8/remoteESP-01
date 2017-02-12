@@ -82,7 +82,7 @@ void setup()
   Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
   delay(100);
   memset(I2C_recdBuf, '\0', 32);
-  sendCommand (CMD_ID, 17); // Command is 55 and response will be 17 characters
+  sendCommand (CMD_ID, 28); // Command is 55 and response will be 17 characters
   delay(100);//Wait for Slave to calculate response.
   int x = Wire.available();
   Serial.print("@Slave setup routine: Wire.available() = ");
@@ -150,6 +150,7 @@ uint8_t getCmd(char* incomingPacket)
 }
 
 void processCmd(uint8_t cmd)
+// Process a command sent via UDP from remote
 {
   int  x;
   Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
@@ -176,35 +177,12 @@ void processCmd(uint8_t cmd)
     case 5: //debug note: This code should switch a relay via Arduino I2C
       Udp.write("01 12600");
       sendCommand (CMD_READ_A1, 4);
-      memset(I2C_recdBuf, '\0', 32);
-      delay(100);//Wait for Slave to calculate response.
-      x = Wire.available();
-      Serial.print("@case 5: Wire.available() = ");
-      Serial.println (x);
-      if (x) {
-        for (byte i = 0; i < x ; i++) {
-          I2C_recdBuf[i] = Wire.read ();
-        }  // end of for loop
-        Serial.print("@case 5: I2C_recdBuf[] contents = ");
-        Serial.println (I2C_recdBuf);
-      }
+      requestFromResponse();      
       break;
     case 6:
       Udp.write("01 12600");
-      sendCommand (CMD_READ_A2, 4);
+      sendCommand (CMD_READ_A2, 8);
       requestFromResponse();
-/*      memset(I2C_recdBuf, '\0', 32);
-      delay(100);//Wait for Slave to calculate response.
-      x = Wire.available();
-      Serial.print("@case 6: Wire.available() = ");
-      Serial.println (x);
-      if (x) {
-        for (byte i = 0; i < x ; i++) {
-          I2C_recdBuf[i] = Wire.read ();
-        }  // end of for loop
-        Serial.print("@case 6: I2C_recdBuf[] contents = ");
-        Serial.println (I2C_recdBuf);
-      } */
       break;
     case 7:
       Udp.write("01 0");
@@ -226,12 +204,12 @@ void processCmd(uint8_t cmd)
 void requestFromResponse()
 {
   int x;
-  
+
+  delay(10);//Wait for Slave to calculate response.
   memset(I2C_recdBuf, '\0', 32);
-  delay(100);//Wait for Slave to calculate response.
   x = Wire.available();
-  Serial.print("@requestFromResponse(): Wire.available() = ");
-  Serial.println (x);
+//  Serial.print("@requestFromResponse(): Wire.available() = ");
+//  Serial.println (x);
   if (x) {
     for (byte i = 0; i < x ; i++) {
       I2C_recdBuf[i] = Wire.read ();
@@ -240,6 +218,7 @@ void requestFromResponse()
     Serial.println (I2C_recdBuf);
   }
 }
+
 void sendArduino()
 {
   uint8_t len;
@@ -268,6 +247,7 @@ void sendCommand (const byte cmd, const int responseSize)
 {
   uint8_t len;
 
+  delay(10);
   sprintf(I2C_sendBuf, "%d", cmd);
   len = strlen(I2C_sendBuf);
   I2C_sendBuf[len] = '\0';
