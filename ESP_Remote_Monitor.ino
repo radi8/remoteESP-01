@@ -13,25 +13,28 @@ const int scl = 2;
 const int rxPin = 3; //GPIO3
 const int txPin = 1; //GPIO1
 const int LED = 10;
+unsigned int localtcpPort = 8475;  // local port to listen on
 
 enum {
-  CMD_TUNE = 1,
-  CMD_READ_A0  = 2,
-  CMD_READ_A1  = 3,
-  CMD_READ_A2  = 4,
-  CMD_READ_D2 = 5,
-  CMD_READ_D3 = 6,
-  CMD_SET_D8_HI = 7,
-  CMD_SET_D8_LO = 8,
-  CMD_SET_D9_HI = 9,
-  CMD_SET_D9_LO = 10,
-  CMD_SET_LED_HI = 11,
-  CMD_SET_LED_LO = 12,
-  CMD_STATUS = 13,
-  CMD_ID = 55
+  CMD_PWR_ON = 1, //Start the enum from 1
+  CMD_PWR_OFF,
+  CMD_TUNE,
+  CMD_READ_A0,
+  CMD_READ_A1,
+  CMD_READ_A2,
+  CMD_READ_D2,
+  CMD_READ_D3,
+  CMD_SET_RLY1_ON,
+  CMD_SET_RLY1_OFF,
+  CMD_SET_RLY2_ON,
+  CMD_SET_RLY2_OFF,
+  CMD_SET_LED_HI,
+  CMD_SET_LED_LO,
+  CMD_STATUS,
+  CMD_ID
 };
 
-WiFiUDP Udp;
+WiFiServer server(localtcpPort);
 // NETWORK: Static IP details...
 IPAddress ip(192, 168, 1, 70);
 IPAddress gateway(192, 168, 1, 1);
@@ -40,7 +43,7 @@ IPAddress subnet(255, 255, 255, 0);
 IPAddress dns(202.180.64.10);
 #endif
 
-unsigned int localUdpPort = 8475;  // local port to listen on
+
 
 char incomingPacket[255];  // buffer for incoming packets
 char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
@@ -51,7 +54,8 @@ char I2C_recdBuf[32];
 
 void setup()
 {
-  pinMode(rxPin, OUTPUT);      // sets the IO2 digital pin as output
+  // prepare GPIO2
+  pinMode(rxPin, OUTPUT);      // sets the GPIO2 digital pin as output
   digitalWrite(rxPin, HIGH);
 
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
@@ -60,7 +64,7 @@ void setup()
   Wire.setClockStretchLimit(100000);    // in µs
   Wire.onReceive(receiveEvent);
 
-  Serial.printf("Connecting to %s/%d ", ssid, localUdpPort);
+  Serial.printf("Connecting to %s/%d ", ssid, localtcpPort);
   // Static IP Setup Info Here...
 #ifdef FEATURE_Internet_Access
   // If you need Internet Access You should Add DNS also...
@@ -69,7 +73,7 @@ void setup()
   WiFi.config(ip, gateway, subnet);
 #endif
 
-  // Start Server
+  // Connect to WiFi network
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED)
   {
@@ -77,34 +81,37 @@ void setup()
     Serial.print(".");
   }
   Serial.println(" connected");
+  Serial.print("MAC Addr: ");
+  Serial.println(WiFi.macAddress());
+  Serial.print("IP Addr:  ");
+  Serial.println(WiFi.localIP());
+  Serial.print("Subnet:   ");
+  Serial.println(WiFi.subnetMask());
+  Serial.print("Gateway:  ");
+  Serial.println(WiFi.gatewayIP());
+  Serial.print("DNS Addr: ");
+  Serial.println(WiFi.dnsIP());
+  Serial.print("Channel:  ");
+  Serial.println(WiFi.channel());
+  Serial.print("Status: ");
+  Serial.println(WiFi.status());
 
-  Udp.begin(localUdpPort);
-  Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
+  // Start Server
+  server.begin();
+  Serial.printf("Now listening at IP %s, TCP port %d\n", WiFi.localIP().toString().c_str(), localtcpPort);
   delay(100);
+
   memset(I2C_recdBuf, '\0', 32);
   sendCommand (CMD_ID, 28); // Command is 55 and response will be 17 characters
   delay(100);//Wait for Slave to calculate response.
   int x = Wire.available();
   Serial.print("@Slave setup routine: Wire.available() = ");
   Serial.println (x);
-  //  I2C_recdBuf[0] = 'H';
-  //  I2C_recdBuf[1] = 'i';
-  //  Serial.println (I2C_recdBuf);
   if (x) {
 
     for (byte i = 0; i < x ; i++) {
       I2C_recdBuf[i] = Wire.read ();
     }  // end of for loop
-    /*
-        x = 0;
-        while(Wire.available()) {
-          delay(10);
-          I2C_recdBuf[x] = Wire.read();
-          Serial.print(I2C_recdBuf[x]);
-          x++;
-          if(x == 32) break;
-        }
-    */
     Serial.println();
     Serial.print("@Slave setup routine: I2C_recdBuf[] contents = ");
     Serial.println (I2C_recdBuf);
@@ -115,29 +122,55 @@ void setup()
 
 void loop()
 {
-  uint8_t cmd;
-  int packetSize = Udp.parsePacket();
-
-  if (packetSize) // Process incoming packets if we received some
-  {
-    // receive incoming UDP packets
-    Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
-    int len = Udp.read(incomingPacket, 255);
-    if (len > 0)
-    {
-      incomingPacket[len] = 0;  //Terminate string
-    }
-    Serial.printf("UDP packet contents: %s\n", incomingPacket);
-    /*
-        // send back a reply, to the IP address and port we got the packet from
-        Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-        Udp.write(replyPacket);
-        Udp.endPacket();
-    */
-    cmd = getCmd(incomingPacket);
-    Serial.printf("cmd value = %d\n", cmd);
-    if (cmd > 0) processCmd(cmd);
+  // Check if a client has connected
+  WiFiClient client = server.available();
+  if (!client) {
+    return;
   }
+
+  // Wait until the client sends some data
+  Serial.println("new client");
+  while (!client.available()) {
+    delay(1);
+  }
+
+  // Read the first line of the request
+  String req = client.readStringUntil('\r');
+  Serial.println(req);
+  client.flush();
+
+  // Match the request
+  int val;
+  if (req == "1")
+    val = LOW;
+  else if (req == "2")
+    val = HIGH;
+  else {
+    Serial.println("invalid request");
+    client.stop();
+    return;
+  }
+
+  // Set GPIO2 according to the request
+  digitalWrite(rxPin, val);
+
+  client.flush();
+
+  // Prepare the response
+/*  
+  String s = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\nGPIO is now ";
+  s += (val) ? "high" : "low";
+  s += "</html>\n";
+*/
+  String s = "GPIO is now ";
+  s += (val) ? "high" : "low";
+  // Send the response to the client
+  client.print(s);
+  delay(1);
+  Serial.println("Client disconnected");
+
+  // The client will actually be disconnected
+  // when the function returns and 'client' object is detroyed
 }
 
 uint8_t getCmd(char* incomingPacket)
@@ -148,10 +181,10 @@ uint8_t getCmd(char* incomingPacket)
   cmdNumber = strtol(incomingPacket, &pEnd, 10);
   return cmdNumber;
 }
-
-void processCmd(uint8_t cmd)
-// Process a command sent via UDP from remote
-{
+/*
+  void processCmd(uint8_t cmd)
+  // Process a command sent via UDP from remote
+  {
   int  x;
   Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
   switch (cmd) {
@@ -177,7 +210,7 @@ void processCmd(uint8_t cmd)
     case 5: //debug note: This code should switch a relay via Arduino I2C
       Udp.write("01 12600");
       sendCommand (CMD_READ_A1, 4);
-      requestFromResponse();      
+      requestFromResponse();
       break;
     case 6:
       Udp.write("01 12600");
@@ -197,8 +230,8 @@ void processCmd(uint8_t cmd)
   }
   Udp.endPacket();
   // send back a reply, to the IP address and port we got the packet from
-}
-
+  }
+*/
 /************************** I2C subroutines **************************/
 
 void requestFromResponse()
@@ -208,8 +241,8 @@ void requestFromResponse()
   delay(10);//Wait for Slave to calculate response.
   memset(I2C_recdBuf, '\0', 32);
   x = Wire.available();
-//  Serial.print("@requestFromResponse(): Wire.available() = ");
-//  Serial.println (x);
+  //  Serial.print("@requestFromResponse(): Wire.available() = ");
+  //  Serial.println (x);
   if (x) {
     for (byte i = 0; i < x ; i++) {
       I2C_recdBuf[i] = Wire.read ();
