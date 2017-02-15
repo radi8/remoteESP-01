@@ -138,18 +138,20 @@ void loop()
   String req = client.readStringUntil('\r');
   Serial.println(req);
   client.flush();
-
+/*
   // Match the request
   int val;
-  if (req == "1")
+  if (req == CMD_PWR_ON)
     val = LOW;
-  else if (req == "2")
+  else if (req == CMD_PWR_OFF)
     val = HIGH;
   else {
     Serial.println("invalid request");
     client.stop();
     return;
   }
+
+
 
   // Set GPIO2 according to the request
   digitalWrite(rxPin, val);
@@ -161,7 +163,7 @@ void loop()
   String s = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n<!DOCTYPE HTML>\r\n<html>\r\nGPIO is now ";
   s += (val) ? "high" : "low";
   s += "</html>\n";
-*/
+
   String s = "GPIO is now ";
   s += (val) ? "high" : "low";
   // Send the response to the client
@@ -171,35 +173,42 @@ void loop()
 
   // The client will actually be disconnected
   // when the function returns and 'client' object is detroyed
+*/
+  uint8_t myCmd = getCmd(req);
+  processCmd(client, myCmd);
+  delay(1);
 }
 
-uint8_t getCmd(char* incomingPacket)
+uint8_t getCmd(String incomingPacket)
 {
+  const char * c = incomingPacket.c_str();
   long cmdNumber;
   char * pEnd;
 
-  cmdNumber = strtol(incomingPacket, &pEnd, 10);
+  cmdNumber = strtol(c, &pEnd, 10);
   return cmdNumber;
 }
-/*
-  void processCmd(uint8_t cmd)
-  // Process a command sent via UDP from remote
-  {
+
+void processCmd(WiFiClient &client, uint8_t cmd)
+  // Process a command sent via TCP from remote
+{
   int  x;
-  Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
+//  Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
   switch (cmd) {
-    case 1:
+    case CMD_PWR_ON:
       // Send power on signal via I2C to Arduino
       digitalWrite(rxPin, LOW); // Turn Power on
-      Udp.write("03 1");
+//      Udp.write("03 1");
+      client.print("1 1");
       break;
-    case 2:
+    case CMD_PWR_OFF:
       digitalWrite(rxPin, HIGH); // Turn Power off
-      Udp.write("03 0");
+//      Udp.write("03 0");
+      client.print("1 0");
       break;
-    case 3: // Tune button clicked
+    case CMD_TUNE: // Tune button clicked
       Serial.println("ESP01 has received 03 command");
-      Udp.write("03 received at ESP01");
+//      Udp.write("03 received at ESP01");
       strcpy(I2C_sendBuf, "1");
       sendArduino();
       break;
@@ -208,30 +217,30 @@ uint8_t getCmd(char* incomingPacket)
       sendArduino(); // Hello button clicked
       break;
     case 5: //debug note: This code should switch a relay via Arduino I2C
-      Udp.write("01 12600");
+//      Udp.write("01 12600");
       sendCommand (CMD_READ_A1, 4);
       requestFromResponse();
       break;
     case 6:
-      Udp.write("01 12600");
+//      Udp.write("01 12600");
       sendCommand (CMD_READ_A2, 8);
       requestFromResponse();
       break;
     case 7:
-      Udp.write("01 0");
+//      Udp.write("01 0");
       break;
     case 8:
-      Udp.write("01 0");
+//      Udp.write("01 0");
       break;
     default:
       // if nothing else matches, do the default
       // default is optional
       break;
   }
-  Udp.endPacket();
+//  Udp.endPacket();
   // send back a reply, to the IP address and port we got the packet from
-  }
-*/
+}
+
 /************************** I2C subroutines **************************/
 
 void requestFromResponse()
