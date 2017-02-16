@@ -58,7 +58,7 @@ IPAddress subnet(255, 255, 255, 0);
 IPAddress dns(202.180.64.10);
 #endif
 
-char incomingPacket[255];  // buffer for incoming packets
+//char incomingPacket[255];  // buffer for incoming packets
 char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
 
 /************************** Setup I2C stuff **************************/
@@ -75,7 +75,7 @@ void setup()
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   Serial.println();
 
-/************************** Setup TCP stuff **************************/
+  /************************** Setup TCP stuff **************************/
   Serial.printf("Connecting to %s/%d ", ssid, localtcpPort);
   // Static IP Setup Info Here...
 #ifdef FEATURE_Internet_Access
@@ -113,11 +113,11 @@ void setup()
   Serial.printf("Now listening at IP %s, TCP port %d\n", WiFi.localIP().toString().c_str(), localtcpPort);
   delay(100);
 
-/************************** Setup I2C stuff **************************/
+  /************************** Setup I2C stuff **************************/
   Wire.begin(sda, scl);//Set up as master
   Wire.setClockStretchLimit(100000);    // in µs
   Wire.onReceive(receiveEvent);
-  
+
   memset(I2C_recdBuf, '\0', 32);
   sendCommand (CMD_ID, 28); // Command is 55 and response will be 17 characters
   delay(100);//Wait for Slave to calculate response.
@@ -158,15 +158,18 @@ void loop()
   String req = client.readStringUntil('\r');
   Serial.println(req);
   client.flush();
-  uint8_t myCmd = getCmd(req);
-  processCmd(client, myCmd);
+//  uint8_t myCmd = getCmd(req);
+  uint8_t cmdNumber = atoi(req.c_str()); // Convert text to integer
+  
+  processCmd(client, cmdNumber);
   delay(1);
 }
 
 /************************** Subroutines start here **************************/
-
+/*
 uint8_t getCmd(String incomingPacket)
 {
+// Convert string to char[] and extract first command number
   const char * c = incomingPacket.c_str();
   long cmdNumber;
   char * pEnd;
@@ -174,17 +177,17 @@ uint8_t getCmd(String incomingPacket)
   cmdNumber = strtol(c, &pEnd, 10);
   return cmdNumber;
 }
-
-void processCmd(WiFiClient &client, uint8_t cmd)
+*/
+void processCmd(WiFiClient &client, uint8_t cmdNumber)
 // Process a command sent via TCP from remote. A response may be sent back
 // to the tcp client or handed on via I2C to the Arduino or both.
 {
   int  x;
   char  cmdBuffer[10];
   char cmdArg[5];
-  
+
   //  Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
-  switch (cmd) {
+  switch (cmdNumber) {
     case CMD_PWR_ON:
       // Send power on signal via I2C to Arduino
       digitalWrite(rxPin, LOW); // Turn Power on
@@ -207,24 +210,45 @@ void processCmd(WiFiClient &client, uint8_t cmd)
       itoa(CMD_TUNE, cmdBuffer, 10);
       sendArduino();
       break;
-    case 4:
+    case CMD_READ_A0:
       strcpy(I2C_sendBuf, "0");
       sendArduino(); // Hello button clicked
       break;
-    case 5: //debug note: This code should switch a relay via Arduino I2C
+    case CMD_READ_A1: //debug note: This code should switch a relay via Arduino I2C
       //      Udp.write("01 12600");
       sendCommand (CMD_READ_A1, 4);
       requestFromResponse();
       break;
-    case 6:
+    case CMD_READ_A2:
       //      Udp.write("01 12600");
       sendCommand (CMD_READ_A2, 8);
       requestFromResponse();
       break;
-    case 7:
+    case CMD_READ_D2:
       //      Udp.write("01 0");
       break;
-    case 8:
+    case CMD_READ_D3:
+      //      Udp.write("01 0");
+      break;
+    case CMD_SET_RLY1_ON:
+      //      Udp.write("01 0");
+      break;
+    case CMD_SET_RLY1_OFF:
+      //      Udp.write("01 0");
+      break;
+    case CMD_SET_RLY2_ON:
+      //      Udp.write("01 0");
+      break;
+    case CMD_SET_RLY2_OFF:
+      //      Udp.write("01 0");
+      break;
+    case CMD_SET_LED_HI:
+      //      Udp.write("01 0");
+      break;
+    case CMD_SET_LED_LO:
+      //      Udp.write("01 0");
+      break;
+    case CMD_STATUS:
       //      Udp.write("01 0");
       break;
     default:
