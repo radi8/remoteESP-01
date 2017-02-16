@@ -22,8 +22,10 @@ enum { // Commands received from remote
   CMD_READ_A0,
   CMD_READ_A1,
   CMD_READ_A2,
-  CMD_READ_D2,
-  CMD_READ_D3,
+  CMD_D2_HI,
+  CMD_D2_LO,
+  CMD_D3_HI,
+  CMD_D3_LO,
   CMD_SET_RLY1_ON,
   CMD_SET_RLY1_OFF,
   CMD_SET_RLY2_ON,
@@ -58,8 +60,8 @@ IPAddress subnet(255, 255, 255, 0);
 IPAddress dns(202.180.64.10);
 #endif
 
-//char incomingPacket[255];  // buffer for incoming packets
-char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
+String incomingPacket;  // buffer for incoming packets
+//char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
 
 /************************** Setup I2C stuff **************************/
 char I2C_sendBuf[32];
@@ -155,105 +157,112 @@ void loop()
   }
 
   // Read the first line of the request
-  String req = client.readStringUntil('\r');
-  Serial.println(req);
+  incomingPacket = client.readStringUntil('\r'); // Read into global variable
+  Serial.println(incomingPacket);
   client.flush();
-//  uint8_t myCmd = getCmd(req);
-  uint8_t cmdNumber = atoi(req.c_str()); // Convert text to integer
-  
+  uint8_t cmdNumber = atoi(incomingPacket.c_str()); // Convert text to integer
+
   processCmd(client, cmdNumber);
   delay(1);
 }
 
 /************************** Subroutines start here **************************/
-/*
-uint8_t getCmd(String incomingPacket)
-{
-// Convert string to char[] and extract first command number
-  const char * c = incomingPacket.c_str();
-  long cmdNumber;
-  char * pEnd;
 
-  cmdNumber = strtol(c, &pEnd, 10);
-  return cmdNumber;
-}
-*/
 void processCmd(WiFiClient &client, uint8_t cmdNumber)
 // Process a command sent via TCP from remote. A response may be sent back
-// to the tcp client or handed on via I2C to the Arduino or both.
+// to the tcp client or handed on via I2C to the Arduino or both. Where
+// appropriate the arduino will send data back to the tcp client via I2C.
+// The global "String incomingPacket" still holds the original command text.
+// Strings to be sent to arduino are placed in I2C_sendBuf and sendArduino();
 {
   int  x;
-  char  cmdBuffer[10];
-  char cmdArg[5];
+  char  cmdBuffer[10]; // Holds the command to be sent to the client
+  char cmdArg[5]; // Holds value to be appended to cmdBuffer and sent
+  // with: client.print(cmdBuffer);
 
-  //  Udp.beginPacket(Udp.remoteIP(), Udp.remotePort());
   switch (cmdNumber) {
     case CMD_PWR_ON:
       // Send power on signal via I2C to Arduino
-      digitalWrite(rxPin, LOW); // Turn Power on
+      digitalWrite(rxPin, LOW); // Turn Power on from ESP01 Rx pin
       itoa(_pwrSwitch, cmdBuffer, 10);
       strcpy(cmdArg, " 1");
       strcat(cmdBuffer, cmdArg);
-      client.print(cmdBuffer);
+      client.print(cmdBuffer); // Echo the command back to tcp client
       break;
     case CMD_PWR_OFF:
-      digitalWrite(rxPin, HIGH); // Turn Power off
+      digitalWrite(rxPin, HIGH); // Turn Power off from ESP01 Rx pin
       itoa(_pwrSwitch, cmdBuffer, 10);
       strcpy(cmdArg, " 0");
       strcat(cmdBuffer, cmdArg);
-      client.print(cmdBuffer);
+      client.print(cmdBuffer); // Echo the command back to tcp client
       break;
     case CMD_TUNE: // Tune button clicked
       Serial.println("ESP01 has received 03 command");
-      //      Udp.write("03 received at ESP01");
       strcpy(I2C_sendBuf, "3");
-      itoa(CMD_TUNE, cmdBuffer, 10);
+      itoa(CMD_TUNE, cmdBuffer, 10); // Send this command on to the arduino
+      client.print(cmdBuffer); // Echo the command back to tcp client
       sendArduino();
       break;
     case CMD_READ_A0:
-      strcpy(I2C_sendBuf, "0");
+      itoa(CMD_READ_A0, I2C_sendBuf, 10); // Send this command on to the arduino
       sendArduino(); // Hello button clicked
       break;
-    case CMD_READ_A1: //debug note: This code should switch a relay via Arduino I2C
-      //      Udp.write("01 12600");
-      sendCommand (CMD_READ_A1, 4);
-      requestFromResponse();
+    case CMD_READ_A1:
+      itoa(CMD_READ_A1, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     case CMD_READ_A2:
-      //      Udp.write("01 12600");
-      sendCommand (CMD_READ_A2, 8);
-      requestFromResponse();
+      itoa(CMD_READ_A2, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
-    case CMD_READ_D2:
-      //      Udp.write("01 0");
+    case CMD_D2_HI:
+      itoa(CMD_D2_HI, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
-    case CMD_READ_D3:
-      //      Udp.write("01 0");
+    case CMD_D2_LO:
+      itoa(CMD_D2_LO, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
+    case CMD_D3_HI:
+      itoa(CMD_D3_HI, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
+      break;
+    case CMD_D3_LO:
+      itoa(CMD_D3_LO, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
+      break;      
     case CMD_SET_RLY1_ON:
-      //      Udp.write("01 0");
+      itoa(CMD_SET_RLY1_ON, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     case CMD_SET_RLY1_OFF:
-      //      Udp.write("01 0");
+      itoa(CMD_SET_RLY1_OFF, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     case CMD_SET_RLY2_ON:
-      //      Udp.write("01 0");
+      itoa(CMD_SET_RLY2_ON, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     case CMD_SET_RLY2_OFF:
-      //      Udp.write("01 0");
+      itoa(CMD_SET_RLY2_OFF, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     case CMD_SET_LED_HI:
-      //      Udp.write("01 0");
+      itoa(CMD_SET_LED_HI, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     case CMD_SET_LED_LO:
-      //      Udp.write("01 0");
+      itoa(CMD_SET_LED_LO, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     case CMD_STATUS:
-      //      Udp.write("01 0");
+      itoa(CMD_STATUS, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendArduino();
       break;
     default:
       // if nothing else matches, do the default
       // default is optional
+      client.print("@ processCmd: " + incomingPacket + " command Received");
       break;
   }
 }
