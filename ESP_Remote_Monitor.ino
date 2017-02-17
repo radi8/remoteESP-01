@@ -22,10 +22,8 @@ enum { // Commands received from remote
   CMD_READ_A0,
   CMD_READ_A1,
   CMD_READ_A2,
-  CMD_D2_HI,
-  CMD_D2_LO,
-  CMD_D3_HI,
-  CMD_D3_LO,
+  CMD_READ_D2,
+  CMD_READ_D3,
   CMD_SET_RLY1_ON,
   CMD_SET_RLY1_OFF,
   CMD_SET_RLY2_ON,
@@ -36,7 +34,7 @@ enum { // Commands received from remote
   CMD_ID
 };
 
-enum { // Send these in response to commands from Remote
+enum { // Arduino sends these, pass on to tcp client
   _pwrSwitch = 1, //Start the emun from 1
   _tuneState,
   _volts,
@@ -50,7 +48,7 @@ enum { // Send these in response to commands from Remote
   _message
 };
 
-/************************** Setup TCP stuff **************************/
+/************************** Setup global TCP stuff **************************/
 WiFiServer server(localtcpPort);
 // NETWORK: Static IP details...
 IPAddress ip(192, 168, 1, 70);
@@ -63,7 +61,7 @@ IPAddress dns(202.180.64.10);
 String incomingPacket;  // buffer for incoming packets
 //char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
 
-/************************** Setup I2C stuff **************************/
+/************************** Setup global I2C stuff **************************/
 char I2C_sendBuf[32];
 char I2C_recdBuf[32];
 
@@ -122,11 +120,12 @@ void setup()
 
   memset(I2C_recdBuf, '\0', 32);
   sendCommand (CMD_ID, 28); // Command is 55 and response will be 17 characters
-  delay(100);//Wait for Slave to calculate response.
-  int x = Wire.available();
-  Serial.print("@Slave setup routine: Wire.available() = ");
-  Serial.println (x);
-  if (x) {
+  /*
+    delay(100);//Wait for Slave to calculate response.
+    int x = Wire.available();
+    Serial.print("@Slave setup routine: Wire.available() = ");
+    Serial.println (x);
+    if (x) {
 
     for (byte i = 0; i < x ; i++) {
       I2C_recdBuf[i] = Wire.read ();
@@ -134,15 +133,16 @@ void setup()
     Serial.println();
     Serial.print("@Slave setup routine: I2C_recdBuf[] contents = ");
     Serial.println (I2C_recdBuf);
-  }
-  else Serial.println ("No response to ID request");
+    }
+    else Serial.println ("No response to ID request");
+  */
 } // end of setup
 
 /************************** Main Loop **************************/
 
 void loop()
 // Run through the loop checking for a tcp client connection and read
-// the command sent.
+// the command sent. The I2C traffic is interrupt driven
 {
   // Check if a client has connected
   WiFiClient client = server.available();
@@ -173,7 +173,7 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
 // to the tcp client or handed on via I2C to the Arduino or both. Where
 // appropriate the arduino will send data back to the tcp client via I2C.
 // The global "String incomingPacket" still holds the original command text.
-// Strings to be sent to arduino are placed in I2C_sendBuf and sendArduino();
+// Strings to be sent are placed in I2C_sendBuf and sent with sendArduino();
 {
   int  x;
   char  cmdBuffer[10]; // Holds the command to be sent to the client
@@ -204,33 +204,30 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       sendArduino();
       break;
     case CMD_READ_A0:
-      itoa(CMD_READ_A0, I2C_sendBuf, 10); // Send this command on to the arduino
-      sendArduino(); // Hello button clicked
+      //      itoa(CMD_READ_A0, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendCommand (CMD_READ_A0, 7);
+      client.println(I2C_recdBuf);
       break;
     case CMD_READ_A1:
-      itoa(CMD_READ_A1, I2C_sendBuf, 10); // Send this command on to the arduino
-      sendArduino();
+      //      itoa(CMD_READ_A1, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendCommand (CMD_READ_A1, 7);
+      client.println(I2C_recdBuf);
       break;
     case CMD_READ_A2:
-      itoa(CMD_READ_A2, I2C_sendBuf, 10); // Send this command on to the arduino
-      sendArduino();
+      //      itoa(CMD_READ_A2, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendCommand (CMD_READ_A2, 7);
+      client.println(I2C_recdBuf);
       break;
-    case CMD_D2_HI:
-      itoa(CMD_D2_HI, I2C_sendBuf, 10); // Send this command on to the arduino
-      sendArduino();
+    case CMD_READ_D2:
+      //      itoa(CMD_D2_HI, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendCommand (CMD_READ_D2, 4);
+      client.println(I2C_recdBuf);
       break;
-    case CMD_D2_LO:
-      itoa(CMD_D2_LO, I2C_sendBuf, 10); // Send this command on to the arduino
-      sendArduino();
+    case CMD_READ_D3:
+      //      itoa(CMD_D2_LO, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendCommand (CMD_READ_D3, 4);
+      client.println(I2C_recdBuf);
       break;
-    case CMD_D3_HI:
-      itoa(CMD_D3_HI, I2C_sendBuf, 10); // Send this command on to the arduino
-      sendArduino();
-      break;
-    case CMD_D3_LO:
-      itoa(CMD_D3_LO, I2C_sendBuf, 10); // Send this command on to the arduino
-      sendArduino();
-      break;      
     case CMD_SET_RLY1_ON:
       itoa(CMD_SET_RLY1_ON, I2C_sendBuf, 10); // Send this command on to the arduino
       sendArduino();
@@ -259,10 +256,15 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       itoa(CMD_STATUS, I2C_sendBuf, 10); // Send this command on to the arduino
       sendArduino();
       break;
+    case CMD_ID:
+      //      itoa(CMD_ID, I2C_sendBuf, 10); // Send this command on to the arduino
+      sendCommand (CMD_ID, 28);
+      client.println(I2C_recdBuf);
+      break;
     default:
       // if nothing else matches, do the default
       // default is optional
-      client.print("@ processCmd: " + incomingPacket + " command Received");
+      client.println("@ESP09 processCmd: " + incomingPacket + " command Received");
       break;
   }
 }
@@ -272,20 +274,19 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
 
 void requestFromResponse()
 {
-  int x;
+  int x = 0;
 
-  delay(10);//Wait for Slave to calculate response.
   memset(I2C_recdBuf, '\0', 32);
-  x = Wire.available();
-  //  Serial.print("@requestFromResponse(): Wire.available() = ");
-  //  Serial.println (x);
-  if (x) {
-    for (byte i = 0; i < x ; i++) {
-      I2C_recdBuf[i] = Wire.read ();
-    }  // end of for loop
-    Serial.print("@requestFromResponse(): I2C_recdBuf[] contents = ");
-    Serial.println (I2C_recdBuf);
-  }
+  while (Wire.available()) {
+    I2C_recdBuf[x] = Wire.read();
+    x++;
+  }  // end of for loop
+  x = strlen(I2C_recdBuf);
+  I2C_recdBuf[x] = '\0';
+  Serial.print("@requestFromResponse(): I2C_recdBuf[] contents = ");
+  Serial.print(I2C_recdBuf);
+  Serial.print(", and x = ");
+  Serial.println(x);
 }
 
 void sendArduino()
@@ -309,18 +310,23 @@ void receiveEvent(int howMany) {
     I2C_recdBuf[i] = Wire.read ();
   }  // end of for loop
 
+  Serial.print("@receiveEvent(): I2C_recdBuf = ");
   Serial.println(I2C_recdBuf);
 }
 
 void sendCommand (const byte cmd, const int responseSize)
+// Process a command from the tcp client to the slave via ESP01 which
+// expects some data to be returned from the slave and in turn sent
+// back to the tcp client. Enter with the command from the tcp client
+// passed in the cmd variable and place into I2C_sendBuf[]
 {
   uint8_t len;
 
   delay(10);
-  sprintf(I2C_sendBuf, "%d", cmd);
+  sprintf(I2C_sendBuf, "%d", cmd); // Convert the command to a string
   len = strlen(I2C_sendBuf);
   I2C_sendBuf[len] = '\0';
-  Wire.beginTransmission (I2CAddressESPWifi);
+  Wire.beginTransmission (I2CAddressESPWifi); // send to I2C slave
   for (byte i = 0; i <= len; i++)
   {
     Wire.write(I2C_sendBuf[i]); // Chug out 1 character at a time
@@ -328,5 +334,10 @@ void sendCommand (const byte cmd, const int responseSize)
   Wire.endTransmission ();
   Serial.print("Sent from ESP01:sendCommand() ");
   Serial.println(I2C_sendBuf);
-  Wire.requestFrom (I2CAddressESPWifi, responseSize);
-}  // end of sendCommand
+  if (Wire.requestFrom (I2CAddressESPWifi, responseSize)) {
+    requestFromResponse(); // Get the response from the slave into recdBuf[32]
+  } else {
+    Serial.println("Wire.requestFrom() failure; maybe slave wasn't ready or not connected");
+  }
+  // Caller will send the response up the line to tcp client
+} // end of sendCommand
