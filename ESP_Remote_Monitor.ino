@@ -116,7 +116,7 @@ void setup()
 
   /************************** Setup I2C stuff **************************/
   Wire.begin(sda, scl);//Set up as master
-  Wire.setClockStretchLimit(100000);    // in µs
+  Wire.setClockStretchLimit(40000);    // in µs
   Wire.onReceive(receiveEvent);
 
   memset(I2C_recdBuf, '\0', 32);
@@ -191,18 +191,15 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
     case CMD_PWR_ON:
       // Power on signal goes locally to this ESP01
       digitalWrite(rxPin, LOW); // Turn Power on from ESP01 Rx pin
-      sprintf(I2C_recdBuf, "%d", _pwrSwitch);
-      strcpy(cmdArg, " 1");
-      strcat(I2C_recdBuf, cmdArg);
+      sprintf(I2C_recdBuf, "%d 1", _pwrSwitch);
       sendToClient(client); // Echo the command back to tcp client
       break;
     case CMD_PWR_OFF:
       // Power off signal goes locally to this ESP01
       digitalWrite(rxPin, HIGH); // Turn Power off from ESP01 Rx pin
-      sprintf(cmdBuffer, "%d", _pwrSwitch);
-      strcpy(cmdArg, " 0");
-      strcat(cmdBuffer, cmdArg);
-      client.print(cmdBuffer); // Echo the command back to tcp client
+      sprintf(I2C_recdBuf, "%d 0", _pwrSwitch);
+      sendToClient(client); // Echo the command back to tcp client
+//      client.print(cmdBuffer); // Echo the command back to tcp client
       break;
     case CMD_TUNE: // Tune button clicked
       sprintf(cmdBuffer, "%d", CMD_TUNE);
@@ -255,8 +252,16 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       sendArduino();
       break;
     case CMD_STATUS:
-      sprintf(I2C_sendBuf, "%d", CMD_STATUS);
-      sendArduino();
+      sendCommand (CMD_READ_A0, 7);
+      sendToClient(client);
+      sendCommand (CMD_READ_A1, 7);
+      sendToClient(client);
+      sendCommand (CMD_READ_A2, 7);
+      sendToClient(client);
+      sendCommand (CMD_READ_D2, 4);
+      sendToClient(client);
+      sendCommand (CMD_READ_D3, 4);
+      sendToClient(client);
       break;
     case CMD_ID:
       sendCommand (CMD_ID, 28);
@@ -274,10 +279,10 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
 void sendToClient(WiFiClient &client)
 // Simply send the contents of I2C_recdBuf[] to the tcp client
 {
-  client.println(I2C_recdBuf);
+  client.print(I2C_recdBuf);
 #ifdef _DEBUG
   Serial.print("@sendToClient(): Data sent = ");
-  Serial.print(I2C_recdBuf);
+  Serial.println(I2C_recdBuf);
 #endif  
 }
 
