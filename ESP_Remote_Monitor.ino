@@ -7,8 +7,8 @@
 #define _Version "0.8.0"
 #define I2CAddressESPWifi 9
 
-const char* ssid = "Guest";
-const char* password = "BeMyGuest";
+const char* ssid = "Wireless";
+const char* password = "je4lphHR";
 const int sda = 0;
 const int scl = 2;
 const int rxPin = 3; //GPIO3
@@ -71,7 +71,7 @@ void setup()
 {
   // prepare GPIO2
   pinMode(rxPin, OUTPUT);      // sets the GPIO2 digital pin as output
-  digitalWrite(rxPin, HIGH);
+  digitalWrite(rxPin, LOW);
 
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
   Serial.println(_Version);
@@ -189,14 +189,15 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
 #endif  
   switch (cmdNumber) {
     case CMD_PWR_ON:
-      // Power on signal goes locally to this ESP01
-      digitalWrite(rxPin, LOW); // Turn Power on from ESP01 Rx pin
+      // Power on signal goes locally to this ESP01. This output drives an open drain FET
+      // so going HIGH on turn-on signal drives the FET output from open to low.
+      digitalWrite(rxPin, HIGH); // Turn Power on from ESP01 Rx pin
       sprintf(I2C_recdBuf, "%d 1", _pwrSwitch);
       sendToClient(client); // Echo the command back to tcp client
       break;
     case CMD_PWR_OFF:
       // Power off signal goes locally to this ESP01
-      digitalWrite(rxPin, HIGH); // Turn Power off from ESP01 Rx pin
+      digitalWrite(rxPin, LOW); // Turn Power off from ESP01 Rx pin
       sprintf(I2C_recdBuf, "%d 0", _pwrSwitch);
       sendToClient(client); // Echo the command back to tcp client
 //      client.print(cmdBuffer); // Echo the command back to tcp client
@@ -279,6 +280,13 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
 void sendToClient(WiFiClient &client)
 // Simply send the contents of I2C_recdBuf[] to the tcp client
 {
+  uint8_t bufLen;
+  
+  // Append a /r/n to the buffer
+  bufLen = strlen(I2C_recdBuf);
+//  I2C_recdBuf[bufLen] = '\r';
+  I2C_recdBuf[bufLen] = '\n';
+  I2C_recdBuf[bufLen+1] = NULL;
   client.print(I2C_recdBuf);
 #ifdef _DEBUG
   Serial.print("@sendToClient(): Data sent = ");
