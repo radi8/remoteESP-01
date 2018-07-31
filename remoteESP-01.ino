@@ -1,3 +1,5 @@
+/* Version 0.0.5 */
+
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
 #include <Wire.h>
