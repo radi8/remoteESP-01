@@ -1,4 +1,4 @@
-/* Version 0.0.5 */
+/* Version Date 2018-08-01 */
 
 #include <ESP8266WiFi.h>
 #include <WiFiUdp.h>
@@ -6,7 +6,7 @@
 
 //#define FEATURE_Internet_Access
 #define _DEBUG
-#define _Version "0.8.0"
+#define _Version "0.9.0"
 #define I2CAddressESPWifi 9
 
 const char* ssid = "Wireless";
@@ -21,23 +21,33 @@ unsigned int localtcpPort = 8475;  // local port to listen on
 enum { // Receive commands from tcp client. Send commands to I2C slave.
   CMD_PWR_ON = 1, //Start the enum from 1
   CMD_PWR_OFF,
-  CMD_TUNE,
-  CMD_READ_A0,
+  CMD_RLY1_ON,    // HiQSDR
+  CMD_RLY1_OFF,
+  CMD_RLY2_ON,    //HermesLite
+  CMD_RLY2_OFF,
+  CMD_RLY3_ON,    // Linear
+  CMD_RLY3_OFF,
+  CMD_RLY4_ON,    // Tuner
+  CMD_RLY4_OFF,   
+  CMD_TUNE_DN,
+  CMD_TUNE_UP,
+  CMD_RADIO_0,    // No antenna selected
+  CMD_RADIO_1,    // wire Antenna selected
+  CMD_RADIO_2,
+  CMD_RADIO_3,
+  CMD_RADIO_4,
+  CMD_READ_A0,    // Shack voltage
   CMD_READ_A1,
   CMD_READ_A2,
-  CMD_READ_D2,
+  CMD_READ_D2,    // Digital input via opto-coupler
   CMD_READ_D3,
-  CMD_SET_RLY1_ON,
-  CMD_SET_RLY1_OFF,
-  CMD_SET_RLY2_ON,
-  CMD_SET_RLY2_OFF,
   CMD_SET_LED_HI,
   CMD_SET_LED_LO,
   CMD_STATUS,
   CMD_ID // Always keep this last
 };
 
-enum { // Receive commands from I2C slave. Send commands to tcp client.
+enum { // Receive commands from remoteArduino (I2C slave). Send commands to tcp client.
   _pwrSwitch = CMD_ID + 1,
   _tuneState,
   _volts,
@@ -204,10 +214,68 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       sendToClient(client); // Echo the command back to tcp client
 //      client.print(cmdBuffer); // Echo the command back to tcp client
       break;
-    case CMD_TUNE: // Tune button clicked
-      sprintf(cmdBuffer, "%d", CMD_TUNE);
+    case CMD_RLY1_ON:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY1_ON);
+      sendArduino();
+      break;
+    case CMD_RLY1_OFF:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY1_OFF);
+      sendArduino();
+      break;
+    case CMD_RLY2_ON:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY2_ON);
+      sendArduino();
+      break;
+    case CMD_RLY2_OFF:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY2_OFF);
+      sendArduino();
+      break;
+    case CMD_RLY3_ON:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY3_ON);
+      sendArduino();
+      break;
+    case CMD_RLY3_OFF:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY3_OFF);
+      sendArduino();
+      break;
+    case CMD_RLY4_ON:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY4_ON);
+      sendArduino();
+      break;
+    case CMD_RLY4_OFF:
+      sprintf(I2C_sendBuf, "%d", CMD_RLY4_OFF);
+      sendArduino();
+      break;
+    case CMD_TUNE_DN: // Tune button clicked
+      sprintf(cmdBuffer, "%d", CMD_TUNE_DN);
       strcpy(I2C_sendBuf, cmdBuffer);
       client.print(cmdBuffer); // Echo the command back to tcp client
+      sendArduino();
+      break;
+    case CMD_TUNE_UP: // Tune button released
+      sprintf(cmdBuffer, "%d", CMD_TUNE_UP);
+      strcpy(I2C_sendBuf, cmdBuffer);
+      client.print(cmdBuffer); // Echo the command back to tcp client
+      sendArduino();
+      break;
+    case CMD_RADIO_0: // Foward radio buttons to Arduino for processing there
+      sprintf(I2C_sendBuf, "%d", CMD_RADIO_0);
+      sendArduino();
+      break;
+    case CMD_RADIO_1:
+      sprintf(I2C_sendBuf, "%d", CMD_RADIO_1);
+      sendArduino();
+      break;
+    case CMD_RADIO_2:
+      sprintf(I2C_sendBuf, "%d", CMD_RADIO_2);
+      sendArduino();
+      break;
+    case CMD_RADIO_3:
+      sprintf(I2C_sendBuf, "%d", CMD_RADIO_3);
+      sendArduino();
+      break;
+    case CMD_RADIO_4:
+      sprintf(I2C_sendBuf, "%d", CMD_RADIO_4);
       sendArduino();
       break;
     case CMD_READ_A0:
@@ -229,23 +297,7 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
     case CMD_READ_D3:
       sendCommand (CMD_READ_D3, 4);
       sendToClient(client);
-      break;
-    case CMD_SET_RLY1_ON:
-      sprintf(I2C_sendBuf, "%d", CMD_SET_RLY1_ON);
-      sendArduino();
-      break;
-    case CMD_SET_RLY1_OFF:
-      sprintf(I2C_sendBuf, "%d", CMD_SET_RLY1_OFF);
-      sendArduino();
-      break;
-    case CMD_SET_RLY2_ON:
-      sprintf(I2C_sendBuf, "%d", CMD_SET_RLY2_ON);
-      sendArduino();
-      break;
-    case CMD_SET_RLY2_OFF:
-      sprintf(I2C_sendBuf, "%d", CMD_SET_RLY2_OFF);
-      sendArduino();
-      break;
+      break;  
     case CMD_SET_LED_HI:
       sprintf(I2C_sendBuf, "%d", CMD_SET_LED_HI);
       sendArduino();
