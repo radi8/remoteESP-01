@@ -86,7 +86,13 @@ void setup()
   digitalWrite(rxPin, LOW);
 
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
-  Serial.println(_Version);
+
+  // Some system info before starting
+  Serial.print("Program version: "); Serial.println(_Version);
+  Serial.print("Heap: "); Serial.println(system_get_free_heap_size());
+  Serial.print("Boot Vers: "); Serial.println(system_get_boot_version());
+  Serial.print("CPU: "); Serial.println(system_get_cpu_freq());
+  Serial.println();  
 
   /************************** Setup TCP stuff **************************/
   Serial.printf("Connecting to %s/%d ", ssid, localtcpPort);
@@ -106,20 +112,13 @@ void setup()
     Serial.print(".");
   }
   Serial.println(" connected");
-  Serial.print("MAC Addr: ");
-  Serial.println(WiFi.macAddress());
-  Serial.print("IP Addr:  ");
-  Serial.println(WiFi.localIP());
-  Serial.print("Subnet:   ");
-  Serial.println(WiFi.subnetMask());
-  Serial.print("Gateway:  ");
-  Serial.println(WiFi.gatewayIP());
-  Serial.print("DNS Addr: ");
-  Serial.println(WiFi.dnsIP());
-  Serial.print("Channel:  ");
-  Serial.println(WiFi.channel());
-  Serial.print("Status: ");
-  Serial.println(WiFi.status());
+  Serial.print("MAC Addr: "); Serial.println(WiFi.macAddress());
+  Serial.print("IP Addr:  "); Serial.println(WiFi.localIP());
+  Serial.print("Subnet:   "); Serial.println(WiFi.subnetMask());
+  Serial.print("Gateway:  "); Serial.println(WiFi.gatewayIP());
+  Serial.print("DNS Addr: "); Serial.println(WiFi.dnsIP());
+  Serial.print("Channel:  "); Serial.println(WiFi.channel());
+  Serial.print("Status: "); Serial.println(WiFi.status());
 
   // Start Server
   server.begin();
