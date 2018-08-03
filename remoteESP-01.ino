@@ -198,17 +198,16 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
   switch (cmdNumber) {
     case CMD_PWR_ON:
       // Power on signal goes locally to this ESP01. This output drives an open drain FET
-      // so going HIGH on turn-on signal drives the FET output from open to low.
+      // so going HIGH on turn-on signal drives the FET output from open drain to low.
       digitalWrite(rxPin, HIGH); // Turn Power on from ESP01 Rx pin
-      sprintf(I2C_recdBuf, "%d 1", _pwrSwitch);
+      sprintf(I2C_recdBuf, "%d \r", cmdNumber);
       sendToClient(client); // Echo the command back to tcp client
       break;
     case CMD_PWR_OFF:
       // Power off signal goes locally to this ESP01
       digitalWrite(rxPin, LOW); // Turn Power off from ESP01 Rx pin
-      sprintf(I2C_recdBuf, "%d 0", _pwrSwitch);
+      sprintf(I2C_recdBuf, "%d \r", cmdNumber);
       sendToClient(client); // Echo the command back to tcp client
-//      client.print(cmdBuffer); // Echo the command back to tcp client
       break;
     case CMD_RLY1_ON:
       sprintf(I2C_sendBuf, "%d", CMD_RLY1_ON);
