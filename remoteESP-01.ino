@@ -71,23 +71,24 @@ IPAddress subnet(255, 255, 255, 0);
 IPAddress dns(202.180.64.10);
 #endif
 
-String incomingPacket;  // buffer for incoming packets
-//char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
+String incomingPacket;  // buffer for incoming TCP/IC packets
+char outgoingPacket[32];  // buffer for outgoing TCP/IP packets
 
 /************************** Setup global I2C stuff **************************/
 char I2C_sendBuf[32];
 char I2C_recdBuf[32];
 
-
+/************************** The constructor **************************/
 void setup()
 {
   // prepare GPIO2
   pinMode(rxPin, OUTPUT);      // sets the GPIO2 digital pin as output
   digitalWrite(rxPin, LOW);
 
+  // Set up the serial port for tranamit only AT 115200
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
 
-  /************************** Setup TCP stuff **************************/
+  // Set up the I2C stuff 
   Serial.printf("Connecting to %s/%d ", ssid, localtcpPort);
   // Static IP Setup Info Here...
 #ifdef FEATURE_Internet_Access
@@ -122,29 +123,14 @@ void setup()
   Serial.printf("Now listening at IP %s, TCP port %d\n", WiFi.localIP().toString().c_str(), localtcpPort);
   delay(100);
 
-  /************************** Setup I2C stuff **************************/
+  // Setup I2C stuff
   Wire.begin(sda, scl);//Set up as master
   Wire.setClockStretchLimit(40000);    // in µs
   Wire.onReceive(receiveEvent);
 
   memset(I2C_recdBuf, '\0', 32);
-   (CMD_ID, 28); // Command is 55 and response will be 17 characters
-  /*
-    delay(100);//Wait for Slave to calculate response.
-    int x = Wire.available();
-    Serial.print("@Slave setup routine: Wire.available() = ");
-    Serial.println (x);
-    if (x) {
-
-    for (byte i = 0; i < x ; i++) {
-      I2C_recdBuf[i] = Wire.read ();
-    }  // end of for loop
-    Serial.println();
-    Serial.print("@Slave setup routine: I2C_recdBuf[] contents = ");
-    Serial.println (I2C_recdBuf);
-    }
-    else Serial.println ("No response to ID request");
-  */
+//   (CMD_ID, 28); // Command is 55 and response will be 17 characters
+   
 } // end of setup
 
 /************************** Main Loop **************************/
@@ -159,13 +145,13 @@ void loop()
     return;
   }
 
-  // Data coming, wait until the client sending it
+  // Data coming, wait until the client has finished sending it
   Serial.println("new client");
   while (!client.available()) {
     delay(1);
   }
 
-  // Read the first line of the request
+  // Read the incoming data until '\r' is detected
   incomingPacket = client.readStringUntil('\r'); // Read into global variable
 #ifdef _DEBUG
   Serial.print("@Main Loop: incoming packet value = ");
@@ -175,6 +161,7 @@ void loop()
   uint8_t cmdNumber = atoi(incomingPacket.c_str()); // Convert text to integer
   processCmd(client, cmdNumber);
   delay(1);
+  client.stop();
 }
 
 /************************** Subroutines start here **************************/
@@ -200,22 +187,28 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       // Power on signal goes locally to this ESP01. This output drives an open drain FET
       // so going HIGH on turn-on signal drives the FET output from open drain to low.
       digitalWrite(rxPin, HIGH); // Turn Power on from ESP01 Rx pin
-      sprintf(I2C_recdBuf, "%d \r", cmdNumber);
+      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
       sendToClient(client); // Echo the command back to tcp client
       break;
     case CMD_PWR_OFF:
       // Power off signal goes locally to this ESP01
       digitalWrite(rxPin, LOW); // Turn Power off from ESP01 Rx pin
-      sprintf(I2C_recdBuf, "%d \r", cmdNumber);
+      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
       sendToClient(client); // Echo the command back to tcp client
       break;
     case CMD_RLY1_ON:
       sprintf(I2C_sendBuf, "%d", CMD_RLY1_ON);
       sendArduino();
+// Temp patch to test
+      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
+      sendToClient(client); // Echo the command back to tcp client
       break;
     case CMD_RLY1_OFF:
       sprintf(I2C_sendBuf, "%d", CMD_RLY1_OFF);
       sendArduino();
+// Temp patch to test
+      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
+      sendToClient(client); // Echo the command back to tcp client
       break;
     case CMD_RLY2_ON:
       sprintf(I2C_sendBuf, "%d", CMD_RLY2_ON);
@@ -274,23 +267,23 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       sendArduino();
       break;
     case CMD_READ_A0:
-      sendCommand (CMD_READ_A0, 7);
+      sendRequestCommand (CMD_READ_A0, 7);
       sendToClient(client);
       break;
     case CMD_READ_A1:
-      sendCommand (CMD_READ_A1, 7);
+      sendRequestCommand (CMD_READ_A1, 7);
       sendToClient(client);
       break;
     case CMD_READ_A2:
-      sendCommand (CMD_READ_A2, 7);
+      sendRequestCommand (CMD_READ_A2, 7);
       sendToClient(client);
       break;
     case CMD_READ_D2:
-      sendCommand (CMD_READ_D2, 4);
+      sendRequestCommand (CMD_READ_D2, 4);
       sendToClient(client);
       break;
     case CMD_READ_D3:
-      sendCommand (CMD_READ_D3, 4);
+      sendRequestCommand (CMD_READ_D3, 4);
       sendToClient(client);
       break;  
     case CMD_SET_LED_HI:
@@ -302,19 +295,19 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       sendArduino();
       break;
     case CMD_STATUS:
-      sendCommand (CMD_READ_A0, 7);
+      sendRequestCommand (CMD_READ_A0, 7);
       sendToClient(client);
-      sendCommand (CMD_READ_A1, 7);
+      sendRequestCommand (CMD_READ_A1, 7);
       sendToClient(client);
-      sendCommand (CMD_READ_A2, 7);
+      sendRequestCommand (CMD_READ_A2, 7);
       sendToClient(client);
-      sendCommand (CMD_READ_D2, 4);
+      sendRequestCommand (CMD_READ_D2, 4);
       sendToClient(client);
-      sendCommand (CMD_READ_D3, 4);
+      sendRequestCommand (CMD_READ_D3, 4);
       sendToClient(client);
       break;
     case CMD_ID:
-      sendCommand (CMD_ID, 28);
+      sendRequestCommand (CMD_ID, 28);
       sendToClient(client);
       break;
     default:
@@ -333,19 +326,21 @@ void sendToClient(WiFiClient &client)
   
   // Append a /r/n to the buffer
   bufLen = strlen(I2C_recdBuf);
-//  I2C_recdBuf[bufLen] = '\r';
   I2C_recdBuf[bufLen] = '\n';
   I2C_recdBuf[bufLen+1] = NULL;
   client.print(I2C_recdBuf);
 #ifdef _DEBUG
   Serial.print("@sendToClient(): Data sent = ");
-  Serial.println(I2C_recdBuf);
+  for (uint8_t y=0; y<(bufLen+2); y++) {
+    Serial.print(I2C_recdBuf[y], HEX); Serial.print(", ");
+  }
+  Serial.println();
 #endif  
 }
 
 /************************** I2C subroutines **************************/
 
-void requestFromResponse()
+void processRequestResponse()
 // Process a response from the slave to a request from ESP01 master for a
 // value from the slave. The value of the response is placed in I2C_recdBuf[]
 {
@@ -363,10 +358,20 @@ void requestFromResponse()
       I2C_recdBuf[x] = NULL;
     }
     x++;
-  }  // end of for loop
+  }   // end of for loop which should leave I2C_recdBuf[] with the string followed 
+      //by NULLs. We need to find the first null and replace it with '\r'
+  x = 0;
+  while (I2C_recdBuf[x] != NULL) {
+    x++;
+  }
+  I2C_recdBuf[x] = '\r';    // Add a carriage return terminator
 
 #ifdef _DEBUG
-  Serial.print("@requestFromResponse(): I2C_recdBuf[] = ");
+  Serial.print("@processRequestResponse(): I2C_recdBuf[] = "); 
+  for (uint8_t y=0; y<(x+1); y++) {
+    Serial.print(I2C_recdBuf[y], HEX); Serial.print(", ");
+  }
+  Serial.println();
   Serial.println(I2C_recdBuf);
 #endif
 }
@@ -379,7 +384,7 @@ void sendArduino()
   uint8_t len;
 
   len = strlen(I2C_sendBuf);
-  I2C_sendBuf[len] = '\0';
+  I2C_sendBuf[len] = '\r';
  
   Wire.beginTransmission(I2CAddressESPWifi);
   for (uint8_t x = 0; x <= len; x++) {
@@ -388,8 +393,10 @@ void sendArduino()
   Wire.endTransmission();
 #ifdef _DEBUG
   Serial.print("@sendArduino(): I2C_sendBuf = ");
-  Serial.print(I2C_sendBuf);
-  Serial.println(", written to slave");
+  for (uint8_t y=0; y<(len+1); y++) {
+    Serial.print(I2C_sendBuf[y], HEX); Serial.print(", ");
+  }
+  Serial.println();
 #endif  
 }
 
@@ -405,7 +412,7 @@ void receiveEvent(int howMany) {
 #endif  
 }
 
-void sendCommand(const byte cmd, const int responseSize)
+void sendRequestCommand(const byte cmd, const int responseSize)
 // Process a command from the tcp client to the slave via ESP01 which
 // expects some data to be returned from the slave and in turn sent
 // back to the tcp client. Enter with the command from the tcp client
@@ -415,6 +422,8 @@ void sendCommand(const byte cmd, const int responseSize)
 
   delay(10);
   sprintf(I2C_sendBuf, "%d", cmd); // Convert the command to a string
+  sendArduino();
+/*  
   len = strlen(I2C_sendBuf);
   I2C_sendBuf[len] = '\0';
   Wire.beginTransmission (I2CAddressESPWifi); // send to I2C slave
@@ -424,13 +433,19 @@ void sendCommand(const byte cmd, const int responseSize)
   }  // end of for loop
   Wire.endTransmission ();
 #ifdef _DEBUG  
-  Serial.print("@sendCommand(): Sent to slave = ");
+  Serial.print("@sendRequestCommand(): Sent to slave = ");
   Serial.println(I2C_sendBuf);
-#endif  
+#endif
+*/
+// Having sent a command on to the Arduino, we now request a response from it with the data
+// it has been programmed to get from receiving this command. We provide it with a response
+// size which is big enough to hold the data it is going to send back. It is OK to be too
+// big as we will clean off any trailing rubbish (shows as bytes of 0xFF)
   if (Wire.requestFrom (I2CAddressESPWifi, responseSize)) {
-    requestFromResponse(); // Get the response from the slave into recdBuf[32]
+    processRequestResponse(); // Get the response from the slave into recdBuf[32]
   } else {
     Serial.println("Wire.requestFrom() failure; maybe slave wasn't ready or not connected");
   }
-  // Caller will send the response up the line to tcp client
-} // end of sendCommand
+  // we return with the request response in the global "char recdBuff[32]" The caller will be
+  // responsible for sending the response up the line to tcp client.
+} // end of sendRequestCommand
