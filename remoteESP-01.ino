@@ -174,7 +174,7 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
 // Strings to be sent are placed in I2C_sendBuf and sent with sendArduino();
 {
   int  x;
-  char  cmdBuffer[10]; // Holds the command to be sent to the client
+  char cmdBuffer[10]; // Holds the command to be sent to the client
   char cmdArg[5]; // Holds value to be appended to cmdBuffer and sent
   // with: client.print(cmdBuffer);
 
@@ -187,113 +187,139 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       // Power on signal goes locally to this ESP01. This output drives an open drain FET
       // so going HIGH on turn-on signal drives the FET output from open drain to low.
       digitalWrite(rxPin, HIGH); // Turn Power on from ESP01 Rx pin
-      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
-      sendToClient(client); // Echo the command back to tcp client
-      break;
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client
+      break;      
     case CMD_PWR_OFF:
       // Power off signal goes locally to this ESP01
       digitalWrite(rxPin, LOW); // Turn Power off from ESP01 Rx pin
-      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
-      sendToClient(client); // Echo the command back to tcp client
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client
       break;
     case CMD_RLY1_ON:
       sprintf(I2C_sendBuf, "%d", CMD_RLY1_ON);
       sendArduino();
-// Temp patch to test
-      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
-      sendToClient(client); // Echo the command back to tcp client
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client
       break;
     case CMD_RLY1_OFF:
       sprintf(I2C_sendBuf, "%d", CMD_RLY1_OFF);
       sendArduino();
-// Temp patch to test
-      sprintf(I2C_recdBuf, "%d\r", cmdNumber);
-      sendToClient(client); // Echo the command back to tcp client
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client
       break;
     case CMD_RLY2_ON:
       sprintf(I2C_sendBuf, "%d", CMD_RLY2_ON);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RLY2_OFF:
       sprintf(I2C_sendBuf, "%d", CMD_RLY2_OFF);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RLY3_ON:
       sprintf(I2C_sendBuf, "%d", CMD_RLY3_ON);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RLY3_OFF:
       sprintf(I2C_sendBuf, "%d", CMD_RLY3_OFF);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RLY4_ON:
       sprintf(I2C_sendBuf, "%d", CMD_RLY4_ON);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RLY4_OFF:
       sprintf(I2C_sendBuf, "%d", CMD_RLY4_OFF);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_TUNE_DN: // Tune button clicked
-      sprintf(cmdBuffer, "%d", CMD_TUNE_DN);
+      sprintf(cmdBuffer, "%d", cmdNumber);
       strcpy(I2C_sendBuf, cmdBuffer);
-      client.print(cmdBuffer); // Echo the command back to tcp client
       sendArduino();
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_TUNE_UP: // Tune button released
-      sprintf(cmdBuffer, "%d", CMD_TUNE_UP);
+      sprintf(cmdBuffer, "%d", cmdNumber);
       strcpy(I2C_sendBuf, cmdBuffer);
-      client.print(cmdBuffer); // Echo the command back to tcp client
       sendArduino();
-      break;
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client
+      break;    
     case CMD_RADIO_0: // Foward radio buttons to Arduino for processing there
       sprintf(I2C_sendBuf, "%d", CMD_RADIO_0);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RADIO_1:
       sprintf(I2C_sendBuf, "%d", CMD_RADIO_1);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RADIO_2:
       sprintf(I2C_sendBuf, "%d", CMD_RADIO_2);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RADIO_3:
       sprintf(I2C_sendBuf, "%d", CMD_RADIO_3);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_RADIO_4:
       sprintf(I2C_sendBuf, "%d", CMD_RADIO_4);
       sendArduino();
-      break;
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
+      break;      
     case CMD_READ_A0:
-      sendRequestCommand (CMD_READ_A0, 7);
-      sendToClient(client);
-      break;
+      sendRequestCommand (CMD_READ_A0, 10);
+      sendToClient(client, I2C_recdBuf);
+      break;     
     case CMD_READ_A1:
-      sendRequestCommand (CMD_READ_A1, 7);
-      sendToClient(client);
+      sendRequestCommand (CMD_READ_A1, 10);
+      sendToClient(client, I2C_recdBuf);
       break;
     case CMD_READ_A2:
-      sendRequestCommand (CMD_READ_A2, 7);
-      sendToClient(client);
+      sendRequestCommand (CMD_READ_A2, 10);
+      sendToClient(client, I2C_recdBuf);
       break;
     case CMD_READ_D2:
-      sendRequestCommand (CMD_READ_D2, 4);
-      sendToClient(client);
+      sendRequestCommand (CMD_READ_D2, 8);
+      sendToClient(client, I2C_recdBuf);
       break;
     case CMD_READ_D3:
-      sendRequestCommand (CMD_READ_D3, 4);
-      sendToClient(client);
+      sendRequestCommand (CMD_READ_D3, 8);
+      sendToClient(client, I2C_recdBuf);
       break;  
     case CMD_SET_LED_HI:
       sprintf(I2C_sendBuf, "%d", CMD_SET_LED_HI);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
     case CMD_SET_LED_LO:
       sprintf(I2C_sendBuf, "%d", CMD_SET_LED_LO);
       sendArduino();
+      sprintf(cmdBuffer, "%d", cmdNumber);
+      sendToClient(client, cmdBuffer); // Echo the command back to tcp client      
       break;
+
+/*      
     case CMD_STATUS:
       sendRequestCommand (CMD_READ_A0, 7);
       sendToClient(client);
@@ -310,20 +336,36 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       sendRequestCommand (CMD_ID, 28);
       sendToClient(client);
       break;
+*/
+      
     default:
       // if nothing else matches, do the default
       // default is optional
-      client.println("@ESP09 processCmd: " + incomingPacket +
-      " Invalid command Received");
+      sprintf(I2C_recdBuf, "Invalid cmd: %d", cmdNumber);
+      sendToClient(client, I2C_recdBuf);
       break;
   }
 }
 
-void sendToClient(WiFiClient &client)
+void sendToClient(WiFiClient &client, char cmdBuffer[])
 // Simply send the contents of I2C_recdBuf[] to the tcp client
 {
   uint8_t bufLen;
-  
+
+  // Append a /r/n to the buffer
+  bufLen = strlen(cmdBuffer);
+  cmdBuffer[bufLen] = 0x0D;
+  cmdBuffer[bufLen+1] = NULL;
+  client.print(cmdBuffer);
+#ifdef _DEBUG
+  Serial.print("@sendToClient(): Data sent = ");
+  for (uint8_t y=0; y<(bufLen+2); y++) {
+    Serial.print(cmdBuffer[y], HEX); Serial.print(", ");
+  }
+  Serial.println();
+#endif 
+
+/*  
   // Append a /r/n to the buffer
   bufLen = strlen(I2C_recdBuf);
   I2C_recdBuf[bufLen] = '\n';
@@ -335,7 +377,8 @@ void sendToClient(WiFiClient &client)
     Serial.print(I2C_recdBuf[y], HEX); Serial.print(", ");
   }
   Serial.println();
-#endif  
+#endif 
+*/ 
 }
 
 /************************** I2C subroutines **************************/
@@ -446,6 +489,6 @@ void sendRequestCommand(const byte cmd, const int responseSize)
   } else {
     Serial.println("Wire.requestFrom() failure; maybe slave wasn't ready or not connected");
   }
-  // we return with the request response in the global "char recdBuff[32]" The caller will be
+  // we return with the request response in the global "char I2C_recdBuf[32]" The caller will be
   // responsible for sending the response up the line to tcp client.
 } // end of sendRequestCommand
