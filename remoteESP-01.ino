@@ -5,6 +5,9 @@
 #include <Wire.h>
 
 //#define FEATURE_Internet_Access
+
+
+
 #define _DEBUG
 #define _Version "0.9.0"
 #define I2CAddressESPWifi 9
@@ -146,19 +149,22 @@ void loop()
   }
 
   // Data coming, wait until the client has finished sending it
+#ifdef _DEBUG  
   Serial.println("new client");
+#endif  
+  
   while (!client.available()) {
     delay(1);
   }
 
   // Read the incoming data until '\r' is detected
   incomingPacket = client.readStringUntil('\r'); // Read into global variable
-#ifdef _DEBUG
-  Serial.print("@Main Loop: incoming packet value = ");
-  Serial.println(incomingPacket);
-#endif  
+  
   client.flush();
   uint8_t cmdNumber = atoi(incomingPacket.c_str()); // Convert text to integer
+#ifdef _DEBUG
+  Serial.print("@Main Loop: cmdNumber value = "); Serial.println(cmdNumber);
+#endif  
   processCmd(client, cmdNumber);
   delay(1);
   client.stop();
@@ -174,14 +180,7 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
 // Strings to be sent are placed in I2C_sendBuf and sent with sendArduino();
 {
   int  x;
-  char cmdBuffer[10]; // Holds the command to be sent to the client
-  char cmdArg[5]; // Holds value to be appended to cmdBuffer and sent
-  // with: client.print(cmdBuffer);
 
-#ifdef _DEBUG
-  Serial.print("@ESP01 processCmd: cmdNumber = ");
-  Serial.println(cmdNumber);
-#endif  
   switch (cmdNumber) {
     case CMD_PWR_ON:
       // Power on signal goes locally to this ESP01. This output drives an open drain FET
@@ -240,6 +239,7 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       sprintf(I2C_sendBuf, "%d", CMD_TUNE_DN);
       sendArduino();
       client.print(I2C_sendBuf);
+      Serial.print("@processCommand; case CMD_TUNE_DN, I2C_sendBuf = "); printBuffer(I2C_sendBuf);
       break;
     case CMD_TUNE_UP: // Tune button released
       sprintf(I2C_sendBuf, "%d", CMD_TUNE_UP);
@@ -272,7 +272,7 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
       client.print(I2C_sendBuf);
       break;      
     case CMD_READ_A0:
-      sendRequestCommand (CMD_READ_A0, 10); //processRequestResponse() terminates I2C_recdBuf
+      sendRequestCommand (CMD_READ_A0, 10); //processRequestResponse() adds 0x0D to I2C_recdBuf
       client.print(I2C_recdBuf);
       break;     
     case CMD_READ_A1:
@@ -282,6 +282,7 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
     case CMD_READ_A2:
       sendRequestCommand (CMD_READ_A2, 10);
       client.print(I2C_recdBuf);
+      Serial.print("@processCommand; case CMD_READ_A2, I2C_sendBuf = "); printBuffer(I2C_recdBuf);
       break;
     case CMD_READ_D2:
       sendRequestCommand (CMD_READ_D2, 8);
@@ -330,26 +331,83 @@ void processCmd(WiFiClient &client, uint8_t cmdNumber)
   }
 }
 
-void sendToClient(WiFiClient &client, char cmdBuffer[])
-// Simply send the contents of I2C_recdBuf[] to the tcp client
+void printBuffer(char buffer[])
 {
-  uint8_t bufLen;
+  uint8_t bufLen = strlen(buffer);
 
-  // Append a /r/n to the buffer
-  bufLen = strlen(cmdBuffer);
-  cmdBuffer[bufLen] = 0x0D;
-  cmdBuffer[bufLen+1] = NULL;
-  client.print(cmdBuffer);
-#ifdef _DEBUG
-  Serial.print("@sendToClient(): Data sent = ");
-  for (uint8_t y=0; y<(bufLen+2); y++) {
-    Serial.print(cmdBuffer[y], HEX); Serial.print(", ");
+  for (uint8_t x=0; x<(bufLen+2); x++) {
+    Serial.print(buffer[x], HEX); Serial.print(", ");
   }
   Serial.println();
-#endif 
 }
 
 /************************** I2C subroutines **************************/
+
+void sendArduino()
+// Sends the data contained in I2C_sendBuf[] to the Arduino slave. The caller needs
+// to ensure that the string is properly formatted.The routine ensures it is properly
+// terminated and sends it via I2C.
+{
+  uint8_t len;
+
+  len = strlen(I2C_sendBuf);
+  I2C_sendBuf[len] = '\r';  // Add a carriage return terminator
+
+  Wire.beginTransmission(I2CAddressESPWifi);
+  for (uint8_t x = 0; x <= len; x++) {
+    Wire.write(I2C_sendBuf[x]);
+  }
+  Wire.endTransmission();
+#ifdef _DEBUG
+  Serial.print("@sendArduino(): Value sent in I2C_sendBuf[] = "); printBuffer(I2C_sendBuf);
+#endif  
+}
+
+void receiveEvent(int howMany) {
+  memset(I2C_recdBuf, '\0', 32);
+  for (byte i = 0; i < howMany; i++)
+  {
+    I2C_recdBuf[i] = Wire.read ();
+  }  // end of for loop
+#ifdef _DEBUG
+  Serial.print("@receiveEvent(): Value received in I2C_recdBuf = "); printBuffer(I2C_recdBuf);
+#endif  
+}
+
+void sendRequestCommand(const byte cmd, const int responseSize)
+// Process a command from the tcp client to the slave via ESP01 which expects some data to be
+// returned from the slave and in turn sent back to the tcp client. Enter with the command
+// from the tcp client passed in the cmd variable and place into I2C_sendBuf[] The responseSize
+// variable is used later by "Wire.requestFrom(I2Caddress, responseSize)" to tell the Arduino
+// slave how many characters to send back when it does its response to the requestFrom.
+{
+  uint8_t len;
+
+  delay(10);
+  sprintf(I2C_sendBuf, "%d", cmd); // Convert the command to a string
+  Serial.print("@sendRequestCommand: cmd = "); Serial.println(cmd); //debug
+
+  sendArduino();
+#ifdef _DEBUG  
+  Serial.print("@sendRequestCommand: Cnd sent in I2C_sendBuf = "); printBuffer(I2C_sendBuf);
+#endif
+// Having sent a command on to the Arduino, we now request a response from it with the data
+// it has been programmed to get from receiving this command. We provide it with a response
+// size which is big enough to hold the data it is going to send back. It is OK to be too
+// big as we will clean off any trailing rubbish (shows as bytes of 0xFF)
+  if (Wire.requestFrom (I2CAddressESPWifi, responseSize)) { // Ask foresponse from Arduino
+#ifdef _DEBUG    
+    Serial.print("@sendRequestCommand; Value before processRequestResponse in I2C_recdBuf = ");
+    printBuffer(I2C_recdBuf);
+#endif
+    processRequestResponse();  // Get the requested response and clean off any rubbish
+  } else {
+    Serial.println("Wire.requestFrom() failure; maybe slave wasn't ready or not connected");
+  }
+  // we return with the request response in the global "char I2C_recdBuf[32]" The caller will be
+  // responsible for sending the response up the line to tcp client.
+} // end of sendRequestCommand
+
 
 void processRequestResponse()
 // Process a response from the slave to a request from ESP01 master for a
@@ -369,87 +427,15 @@ void processRequestResponse()
       I2C_recdBuf[x] = NULL;
     }
     x++;
-  }   // end of for loop which should leave I2C_recdBuf[] with the string followed 
-      //by NULLs. We need to find the first null and replace it with '\r'
-  x = 0;
-/*  
-  while (I2C_recdBuf[x] != NULL) {
-    x++;
-  }
-  I2C_recdBuf[x] = '\r';    // Add a carriage return terminator
-
-*/  
+  }   // end of for loop 
+  
+  // This should leave I2C_recdBuf[] with the string followed 
+  // by NULLs. We need to find the first null and replace it with '\r'
   I2C_recdBuf[strlen(I2C_recdBuf)] = '\r';  // Add a carriage return terminator
-
+  
 #ifdef _DEBUG
-  Serial.print("@processRequestResponse(): I2C_recdBuf[] = "); 
-  for (uint8_t y=0; y<(x+1); y++) {
-    Serial.print(I2C_recdBuf[y], HEX); Serial.print(", ");
-  }
-  Serial.println();
-  Serial.println(I2C_recdBuf);
+  Serial.print("@processRequestResponse(): Value plac
+  ed in I2C_recdBuf[] = "); printBuffer(I2C_recdBuf);
 #endif
 }
 
-void sendArduino()
-// Sends the data in I2C_sendBuf[] to slave. The caller needs to ensure that
-// the string is properly formatted.The routine ensures it is properly
-// terminated and sends it.
-{
-  uint8_t len;
-/*
-  len = strlen(I2C_sendBuf);
-  I2C_sendBuf[len] = '\r';
-*/
-  I2C_sendBuf[strlen(I2C_sendBuf)] = '\r';  // Add a carriage return terminator
-   
-  Wire.beginTransmission(I2CAddressESPWifi);
-  for (uint8_t x = 0; x <= len; x++) {
-    Wire.write(I2C_sendBuf[x]);
-  }
-  Wire.endTransmission();
-#ifdef _DEBUG
-  Serial.print("@sendArduino(): I2C_sendBuf = ");
-  for (uint8_t y=0; y<(len+1); y++) {
-    Serial.print(I2C_sendBuf[y], HEX); Serial.print(", ");
-  }
-  Serial.println();
-#endif  
-}
-
-void receiveEvent(int howMany) {
-  memset(I2C_recdBuf, '\0', 32);
-  for (byte i = 0; i < howMany; i++)
-  {
-    I2C_recdBuf[i] = Wire.read ();
-  }  // end of for loop
-#ifdef _DEBUG
-  Serial.print("@receiveEvent(): I2C_recdBuf = ");
-  Serial.println(I2C_recdBuf);
-#endif  
-}
-
-void sendRequestCommand(const byte cmd, const int responseSize)
-// Process a command from the tcp client to the slave via ESP01 which
-// expects some data to be returned from the slave and in turn sent
-// back to the tcp client. Enter with the command from the tcp client
-// passed in the cmd variable and place into I2C_sendBuf[]
-{
-  uint8_t len;
-
-  delay(10);
-  sprintf(I2C_sendBuf, "%d", cmd); // Convert the command to a string
-  sendArduino();
-
-// Having sent a command on to the Arduino, we now request a response from it with the data
-// it has been programmed to get from receiving this command. We provide it with a response
-// size which is big enough to hold the data it is going to send back. It is OK to be too
-// big as we will clean off any trailing rubbish (shows as bytes of 0xFF)
-  if (Wire.requestFrom (I2CAddressESPWifi, responseSize)) {
-    processRequestResponse(); // Get the response from the slave into recdBuf[32]
-  } else {
-    Serial.println("Wire.requestFrom() failure; maybe slave wasn't ready or not connected");
-  }
-  // we return with the request response in the global "char I2C_recdBuf[32]" The caller will be
-  // responsible for sending the response up the line to tcp client.
-} // end of sendRequestCommand
