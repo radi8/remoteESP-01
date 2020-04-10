@@ -12,7 +12,7 @@
 #define _Version "0.9.0"
 #define I2CAddressESPWifi 9
 
-const char* ssid = "Wireless";
+const char* ssid = "Jury Wireless";
 const char* password = "je4lphHR";
 const int sda = 0;
 const int scl = 2;
