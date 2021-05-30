@@ -34,9 +34,8 @@ enum { // Receive commands from tcp client. Send commands to I2C slave.
   CMD_RLY4_OFF,   
   CMD_TUNE_DN,
   CMD_TUNE_UP,
-  CMD_RADIO_0,    // No antenna selected
-  CMD_RADIO_1,    // wire Antenna selected
-  CMD_RADIO_2,
+  CMD_RADIO_1,    // No antenna selected
+  CMD_RADIO_2,    // wire Antenna selected
   CMD_RADIO_3,
   CMD_RADIO_4,
   CMD_READ_A0,    // Shack voltage
@@ -88,7 +87,7 @@ void setup()
   pinMode(rxPin, OUTPUT);      // sets the GPIO2 digital pin as output
   digitalWrite(rxPin, LOW);
 
-  // Set up the serial port for tranamit only AT 115200
+  // Set up the serial port for transmit only, at 115200
   Serial.begin(115200, SERIAL_8N1, SERIAL_TX_ONLY);
 
   // Set up the I2C stuff 
@@ -345,8 +344,8 @@ void printBuffer(char buffer[])
 
 void sendArduino()
 // Sends the data contained in I2C_sendBuf[] to the Arduino slave. The caller needs
-// to ensure that the string is properly formatted.The routine ensures it is properly
-// terminated and sends it via I2C.
+// to ensure that the string is properly formatted. This routine ensures it is
+// properly terminated and sends it via I2C.
 {
   uint8_t len;
 
@@ -395,7 +394,7 @@ void sendRequestCommand(const byte cmd, const int responseSize)
 // it has been programmed to get from receiving this command. We provide it with a response
 // size which is big enough to hold the data it is going to send back. It is OK to be too
 // big as we will clean off any trailing rubbish (shows as bytes of 0xFF)
-  if (Wire.requestFrom (I2CAddressESPWifi, responseSize)) { // Ask foresponse from Arduino
+  if (Wire.requestFrom (I2CAddressESPWifi, responseSize)) { // Ask for response from Arduino
 #ifdef _DEBUG    
     Serial.print("@sendRequestCommand; Value before processRequestResponse in I2C_recdBuf = ");
     printBuffer(I2C_recdBuf);
@@ -434,8 +433,6 @@ void processRequestResponse()
   I2C_recdBuf[strlen(I2C_recdBuf)] = '\r';  // Add a carriage return terminator
   
 #ifdef _DEBUG
-  Serial.print("@processRequestResponse(): Value plac
-  ed in I2C_recdBuf[] = "); printBuffer(I2C_recdBuf);
+  Serial.print("@processRequestResponse(): Value placed in I2C_recdBuf[] = "); printBuffer(I2C_recdBuf);
 #endif
 }
-
